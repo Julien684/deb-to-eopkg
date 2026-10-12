@@ -318,7 +318,7 @@ fn link_target(raw: Option<Cow<'_, Path>>, path: &str) -> String {
 fn resolve_output(dest: &Path, name: &str, version: &str, arch: &str) -> PathBuf {
     let looks_like_dir = dest.to_string_lossy().ends_with('/') || dest.is_dir();
     if looks_like_dir {
-        dest.join(eopkg::eopkg_filename(name, version, arch))
+        dest.join(eopkg::eopkg_filename(name, version, "1", arch))
     } else {
         dest.to_path_buf()
     }

@@ -230,8 +230,8 @@ pub fn normalize_version(deb_version: &str) -> String {
 }
 
 /// Nom de fichier eopkg usuel : `nom-version-release-1-arch.eopkg`.
-pub fn eopkg_filename(name: &str, version: &str, arch: &str) -> String {
-    format!("{name}-{version}-1-1-{arch}.eopkg")
+pub fn eopkg_filename(name: &str, version: &str, release: &str, arch: &str) -> String {
+    format!("{name}-{version}-{release}-1-{arch}.eopkg")
 }
 
 // ------------------------------------------------------------------------ XML
@@ -436,8 +436,12 @@ mod tests {
     #[test]
     fn nom_de_fichier() {
         assert_eq!(
-            eopkg_filename("equibop", "3.3.1", "x86_64"),
+            eopkg_filename("equibop", "3.3.1", "1", "x86_64"),
             "equibop-3.3.1-1-1-x86_64.eopkg"
+        );
+        assert_eq!(
+            eopkg_filename("deb-to-eopkg", "2.0.0", "2", "x86_64"),
+            "deb-to-eopkg-2.0.0-2-1-x86_64.eopkg"
         );
     }
 }

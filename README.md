@@ -18,8 +18,8 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-curl -LO https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.0.0-1-1-x86_64.eopkg
-sudo eopkg install -y deb-to-eopkg-2.0.0-1-1-x86_64.eopkg
+curl -LO https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.0.0-2-1-x86_64.eopkg
+sudo eopkg install -y deb-to-eopkg-2.0.0-2-1-x86_64.eopkg
 ```
 
 (Sur le réseau local, l'instance Gitea répond aussi en HTTP sur
@@ -95,6 +95,10 @@ cargo test
 - Les **répertoires** du `.deb` ne sont pas listés dans `files.xml` : ils sont
   créés à l'extraction du chargeur. Un répertoire vide n'est donc pas préservé.
 - Les permissions spéciales (setuid/setgid) sont conservées telles quelles.
+- Le texte des métadonnées est repris tel quel du `.deb` : une description
+  non-ASCII peut faire échouer `eopkg info` sur un système dont la locale n'est
+  pas UTF-8 (l'installation, elle, fonctionne). Les métadonnées du paquet
+  `deb-to-eopkg` lui-même sont en ASCII pour cette raison.
 
 ## Licence
 

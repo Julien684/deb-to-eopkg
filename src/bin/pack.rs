@@ -22,15 +22,21 @@ use deb_to_eopkg::TOOL_NAME;
 const PACKAGE_NAME: &str = "deb-to-eopkg";
 const PART_OF: &str = "system.utilities";
 const PACKAGE_LICENSE: &str = "GPL-3.0";
-const HISTORY_COMMENT: &str = "Réécriture de l'outil en Rust.";
-const SUMMARY: &str = "Convertit un paquet Debian (.deb) en paquet Solus (.eopkg).";
+/// Incrémenté à chaque republication d'une même version (eopkg met en cache
+/// par nom de fichier).
+const RELEASE: &str = "2";
+// Métadonnées volontairement en ASCII : eopkg affiche les champs via un flux
+// encodé ASCII quand la locale n'est pas UTF-8, et lève alors une
+// UnicodeEncodeError sur un caractère accentué (vérifié sur Solus 4.9).
+const HISTORY_COMMENT: &str = "Rust rewrite of the conversion tool.";
+const SUMMARY: &str = "Convert a Debian .deb package into a Solus .eopkg package.";
 const DESCRIPTION: &str = "\
-deb-to-eopkg est un petit outil en Rust qui convertit un paquet Debian (.deb) \
-en paquet Solus (.eopkg) installable. Il lit directement la structure ar+tar du \
-.deb (sans dpkg-deb) — data.tar compressé en gzip, xz, bzip2, lzma ou zstd — et \
-écrit un .eopkg conforme (ZIP de metadata.xml, files.xml et install.tar.xz), en \
-préservant les types, les modes et les liens symboliques. Binaire statique, \
-aucune dépendance. Usage : deb-to-eopkg paquet.deb destination/";
+deb-to-eopkg is a small Rust tool that converts a Debian .deb package into an \
+installable Solus .eopkg package. It reads the ar+tar structure of the .deb \
+directly (no dpkg-deb) - data.tar compressed with gzip, xz, bzip2, lzma or zstd \
+- and writes a conformant .eopkg (ZIP of metadata.xml, files.xml and \
+install.tar.xz), preserving file types, modes and symlinks/hardlinks. Static \
+binary, no runtime dependencies. Usage: deb-to-eopkg package.deb destination/";
 
 /// Documentation embarquée dans l'exécutable de packaging : le paquet produit
 /// est donc toujours celui du checkout courant.
@@ -104,6 +110,7 @@ fn run(binary: &Path, out_dir: &Path) -> std::io::Result<PathBuf> {
     let tar_xz = pw.finish()?.finish()?;
 
     let mut info = PackageInfo::new(PACKAGE_NAME, deb_to_eopkg::VERSION, "x86_64");
+    info.release = RELEASE.to_string();
     info.summary = SUMMARY.to_string();
     info.description = DESCRIPTION.to_string();
     info.part_of = PART_OF.to_string();
@@ -113,6 +120,7 @@ fn run(binary: &Path, out_dir: &Path) -> std::io::Result<PathBuf> {
     let out = out_dir.join(eopkg::eopkg_filename(
         &info.name,
         &info.version,
+        &info.release,
         &info.arch,
     ));
     eopkg::write_eopkg(&out, &info, &records, TarSource::Bytes(&tar_xz))?;
