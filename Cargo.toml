@@ -1,0 +1,44 @@
+[package]
+name = "deb-to-eopkg"
+version = "2.0.0"
+edition = "2021"
+rust-version = "1.70"
+license = "GPL-3.0-only"
+description = "Convert a Debian .deb package into an installable Solus .eopkg package"
+homepage = "https://example.com/deb-to-eopkg"
+repository = "http://192.168.122.1:41845/Linuxon/deb-to-eopkg"
+readme = "README.md"
+keywords = ["deb", "eopkg", "solus", "package", "conversion"]
+categories = ["command-line-utilities", "development-tools::build-utils"]
+
+[lib]
+name = "deb_to_eopkg"
+path = "src/lib.rs"
+
+# The converter itself.
+[[bin]]
+name = "deb-to-eopkg"
+path = "src/main.rs"
+
+# Development helper: packages the compiled converter into an installable
+# .eopkg (dist/<name>-<version>-1-1-<arch>.eopkg).
+[[bin]]
+name = "pack-eopkg"
+path = "src/bin/pack.rs"
+
+[dependencies]
+# Pure Rust, no system library.
+flate2 = "1"
+tar = "0.4"
+crc32fast = "1"
+sha1 = "0.10"
+# Vendored C sources, built statically by cargo (no -dev package needed).
+xz2 = { version = "0.1", features = ["static"] }
+zstd = "0.13"
+bzip2 = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
