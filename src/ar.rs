@@ -55,7 +55,13 @@ pub fn list_members(path: &Path) -> io::Result<Vec<ArMember>> {
         let mut hdr = [0u8; 60];
         f.read_exact(&mut hdr)?;
 
-        let name = String::from_utf8_lossy(&hdr[0..16]).trim().to_string();
+        // GNU `ar` termine le nom par un `/` (ex. `control.tar.xz/`) et complète
+        // avec des espaces ; dpkg-deb, lui, n'écrit que des espaces. On retire
+        // les deux, comme le prévoit le format `ar`.
+        let name = String::from_utf8_lossy(&hdr[0..16])
+            .trim()
+            .trim_end_matches('/')
+            .to_string();
         let size_str = String::from_utf8_lossy(&hdr[48..58]).trim().to_string();
         let size: u64 = size_str.parse().map_err(|_| {
             io::Error::new(
@@ -90,6 +96,30 @@ mod tests {
         let p = dir.join("deb-to-eopkg-ar-test-not-ar");
         std::fs::write(&p, b"not an ar archive").unwrap();
         assert!(list_members(&p).is_err());
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn strips_gnu_ar_name_terminator() {
+        // Certains .deb (assemblés avec GNU `ar`, ex. electron-builder) écrivent
+        // le nom suivi d'un `/` : il doit être retiré comme le prévoit le format.
+        let mut a = Vec::new();
+        a.extend_from_slice(AR_MAGIC);
+        let body = b"xzdata";
+        let mut h = [b' '; 60];
+        let name = "control.tar.xz/";
+        h[0..name.len()].copy_from_slice(name.as_bytes());
+        h[48..49].copy_from_slice(b"6");
+        a.extend_from_slice(&h);
+        a.extend_from_slice(body);
+
+        let dir = std::env::temp_dir();
+        let p = dir.join("deb-to-eopkg-ar-test-gnu");
+        std::fs::write(&p, &a).unwrap();
+        let m = list_members(&p).unwrap();
+        assert_eq!(m.len(), 1);
+        assert_eq!(m[0].name, "control.tar.xz");
+        assert_eq!(m[0].size, 6);
         let _ = std::fs::remove_file(&p);
     }
 

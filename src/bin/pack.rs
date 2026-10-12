@@ -24,7 +24,7 @@ const PART_OF: &str = "system.utilities";
 const PACKAGE_LICENSE: &str = "GPL-3.0";
 /// Incrémenté à chaque republication d'une même version (eopkg met en cache
 /// par nom de fichier).
-const RELEASE: &str = "2";
+const RELEASE: &str = "1";
 // Métadonnées volontairement en ASCII : eopkg affiche les champs via un flux
 // encodé ASCII quand la locale n'est pas UTF-8, et lève alors une
 // UnicodeEncodeError sur un caractère accentué (vérifié sur Solus 4.9).
