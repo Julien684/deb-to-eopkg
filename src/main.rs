@@ -26,9 +26,10 @@ ARGUMENTS :
 
 OPTIONS :
     -i, --install   installe le paquet avec eopkg après la conversion
-                    (`sudo eopkg install -y <fichier>`). La conversion doit
-                    avoir réussi. À réserver aux systèmes Solus : sudo est
-                    requis, donc le mot de passe peut être demandé.
+                    (`sudo eopkg install <fichier>`). La conversion doit avoir
+                    réussi. eopkg demande confirmation, vous pouvez donc
+                    renoncer à l'installation. À réserver aux systèmes Solus :
+                    sudo est requis, donc le mot de passe peut être demandé.
     --deps          conserve les dépendances Depends du .deb dans l'eopkg.
                     Par défaut elles sont ignorées : les noms de paquets
                     Debian (libc6) ne correspondent pas à ceux de Solus
@@ -150,18 +151,22 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// Installe le `.eopkg` fraîchement produit avec `sudo eopkg install -y`.
+/// Installe le `.eopkg` fraîchement produit avec `sudo eopkg install`.
+///
+/// On ne passe volontairement pas `-y` : eopkg affiche alors sa question de
+/// confirmation et l'utilisateur peut renoncer à l'installation. La sortie
+/// d'eopkg est reliée au terminal, donc la question reste interactive même
+/// quand notre propre sortie est en mode `--quiet`.
 fn install_package(eopkg: &Path, quiet: bool) -> ExitCode {
     if !quiet {
         eprintln!(
-            "{TOOL_NAME} : installation : sudo eopkg install -y {}",
+            "{TOOL_NAME} : installation : sudo eopkg install {}",
             eopkg.display()
         );
     }
     match Command::new("sudo")
         .arg("eopkg")
         .arg("install")
-        .arg("-y")
         .arg(eopkg)
         .status()
     {

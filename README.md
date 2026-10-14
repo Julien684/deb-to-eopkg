@@ -50,14 +50,16 @@ deb-to-eopkg mon-logiciel.deb /tmp/
 Puis installer le résultat :
 
 ```bash
-sudo eopkg install -y /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
+sudo eopkg install /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
 ```
 
 ## Options
 
 - `-i`, `--install` : lance l'installation après la conversion, avec
-  `sudo eopkg install -y <fichier>`. La conversion doit avoir réussi. À
-  réserver aux systèmes Solus ; `sudo` peut demander le mot de passe.
+  `sudo eopkg install <fichier>`. La conversion doit avoir réussi. eopkg
+  affiche sa question de confirmation, vous pouvez donc renoncer à
+  l'installation. À réserver aux systèmes Solus ; `sudo` peut demander le mot
+  de passe.
 
 - `-q`, `--quiet` : mode silencieux. Par défaut la conversion est **verbeuse**
   (fichier source, membres lus, progression régulière) — utile car une grosse
