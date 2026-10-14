@@ -4,11 +4,14 @@
 //! Usage :
 //!
 //! ```text
+//! deb-to-eopkg paquet.deb
 //! deb-to-eopkg paquet.deb destination/
 //! deb-to-eopkg paquet.deb chemin/vers/paquet.eopkg
 //! ```
+//!
+//! Sans destination, le `.eopkg` est écrit dans le dossier du `.deb`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use deb_to_eopkg::{convert, TOOL_NAME, VERSION};
@@ -17,12 +20,13 @@ const HELP: &str = "\
 deb-to-eopkg — convertit un paquet Debian (.deb) en paquet Solus (.eopkg).
 
 USAGE :
-    deb-to-eopkg [OPTIONS] <paquet.deb> <destination>
+    deb-to-eopkg [OPTIONS] <paquet.deb> [destination]
 
 ARGUMENTS :
     <paquet.deb>    le fichier .deb à convertir
-    <destination>   un dossier (le nom du .eopkg est déduit du paquet)
-                    ou le chemin complet du fichier .eopkg à produire
+    [destination]   un dossier (le nom du .eopkg est déduit du paquet)
+                    ou le chemin complet du fichier .eopkg à produire.
+                    Par défaut : le dossier du .deb.
 
 OPTIONS :
     -i, --install   installe le paquet avec eopkg après la conversion
@@ -45,10 +49,12 @@ OPTIONS :
 La conversion est verbeuse par défaut : elle indique le fichier source, les
 membres lus et une progression régulière (elle peut durer plusieurs minutes).
 
-EXEMPLE :
+EXEMPLES :
+    deb-to-eopkg mon-logiciel.deb
+    # -> ./mon-logiciel-1.2.3-1-1-x86_64.eopkg (à côté du .deb)
     deb-to-eopkg mon-logiciel.deb /tmp/
     # -> /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
-    deb-to-eopkg --install mon-logiciel.deb /tmp/   # ... puis l'installe
+    deb-to-eopkg --install mon-logiciel.deb   # ... puis l'installe
 ";
 
 fn main() -> ExitCode {
@@ -90,8 +96,8 @@ fn main() -> ExitCode {
         }
     }
 
-    let (Some(deb), Some(dest)) = (deb, dest) else {
-        eprintln!("{TOOL_NAME} : erreur : il faut un fichier .deb et une destination.");
+    let Some(deb) = deb else {
+        eprintln!("{TOOL_NAME} : erreur : il faut un fichier .deb à convertir.");
         eprintln!("Essayez `{TOOL_NAME} --help`.");
         return ExitCode::from(2);
     };
@@ -105,9 +111,15 @@ fn main() -> ExitCode {
         eprintln!("{TOOL_NAME} : avertissement : {deb} ne finit pas par .deb");
     }
 
+    // Sans destination, on écrit à côté du `.deb`.
+    let dest = match dest {
+        Some(dest) => PathBuf::from(dest),
+        None => default_destination(deb_path),
+    };
+
     let opts = convert::Options { keep_deps, quiet };
 
-    let summary = match convert::convert(deb_path, Path::new(&dest), opts) {
+    let summary = match convert::convert(deb_path, &dest, opts) {
         Ok(summary) => summary,
         Err(err) => {
             eprintln!("{TOOL_NAME} : erreur : {err}");
@@ -151,6 +163,18 @@ fn main() -> ExitCode {
     ExitCode::SUCCESS
 }
 
+/// Destination par défaut : le dossier qui contient le `.deb`.
+///
+/// `Path::parent()` renvoie une chaîne vide pour un fichier situé dans le
+/// dossier courant (`deb-to-eopkg paquet.deb`) — on écrit alors dans `.`.
+fn default_destination(deb_path: &Path) -> PathBuf {
+    deb_path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
 /// Installe le `.eopkg` fraîchement produit avec `sudo eopkg install`.
 ///
 /// On ne passe volontairement pas `-y` : eopkg affiche alors sa question de
@@ -182,5 +206,35 @@ fn install_package(eopkg: &Path, quiet: bool) -> ExitCode {
             eprintln!("{TOOL_NAME} : erreur : impossible de lancer `sudo` : {err}");
             ExitCode::from(1)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn destination_par_defaut_est_le_dossier_du_deb() {
+        assert_eq!(
+            default_destination(Path::new("/paquets/mon-logiciel.deb")),
+            PathBuf::from("/paquets")
+        );
+        assert_eq!(
+            default_destination(Path::new("/tmp/a/b/c.deb")),
+            PathBuf::from("/tmp/a/b")
+        );
+    }
+
+    #[test]
+    fn destination_par_defaut_dans_le_dossier_courant() {
+        // `parent()` donne "" pour un fichier sans dossier : on écrit dans `.`.
+        assert_eq!(
+            default_destination(Path::new("mon-logiciel.deb")),
+            PathBuf::from(".")
+        );
+        assert_eq!(
+            default_destination(Path::new("./mon-logiciel.deb")),
+            PathBuf::from(".")
+        );
     }
 }

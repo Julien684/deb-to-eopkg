@@ -18,7 +18,7 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.2.2-1-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.2.3-1-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -31,18 +31,23 @@ deb-to-eopkg --help
 ## Utilisation
 
 ```
+deb-to-eopkg paquet.deb
 deb-to-eopkg paquet.deb destination/
 deb-to-eopkg paquet.deb chemin/vers/paquet.eopkg
 ```
 
 - `paquet.deb` : le fichier `.deb` à convertir.
-- `destination` : un **dossier** (l'outil y génère
+- `destination` *(facultative)* : un **dossier** (l'outil y génère
   `nom-version-release-arch.eopkg`) **ou** le **chemin complet** du fichier
-  `.eopkg` à produire.
+  `.eopkg` à produire. **Sans destination, le `.eopkg` est écrit dans le dossier
+  du `.deb`.**
 
 Exemple :
 
 ```bash
+deb-to-eopkg mon-logiciel.deb
+# -> ./mon-logiciel-1.2.3-1-1-x86_64.eopkg (à côté du .deb)
+
 deb-to-eopkg mon-logiciel.deb /tmp/
 # -> /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
 ```
