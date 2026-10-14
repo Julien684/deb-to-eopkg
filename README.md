@@ -18,7 +18,7 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.1.0-1-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.2.0-1-1-x86_64.eopkg
 ```
 
 Vérifier :
