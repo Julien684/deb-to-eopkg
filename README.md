@@ -118,6 +118,14 @@ python3 tools/verify_deb_vs_eopkg.py mon-logiciel.deb /tmp/mon-logiciel-1.2.3-1-
 
 ## Limites connues
 
+- **Le paquet produit est toujours étiqueté `x86_64`.** Solus n'utilise pas
+  `noarch` (aucun paquet de son dépôt, aucun paquet installé) et refuse
+  d'installer un paquet ainsi étiqueté :
+  `Package X (noarch) is not compatible with your x86_64 architecture.`
+  Un `.deb` en `Architecture: all` (polices, documentation, données, pas mal
+  d'applications Java/Python) est donc étiqueté `x86_64` pour rester
+  installable. Si la charge utile visait réellement un autre CPU (arm64,
+  i386…), un avertissement est émis : le contenu ne fonctionnera pas sur Solus.
 - Les **noms de dépendances** ne sont pas traduits (Debian → Solus), d'où le
   comportement par défaut qui les supprime.
 - Les dépendances par architecture (`arch:nom`) sont ignorées.

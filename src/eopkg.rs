@@ -182,19 +182,23 @@ pub fn classify_type(path: &str) -> &'static str {
     "data"
 }
 
-/// Traduit une architecture Debian en architecture eopkg.
-pub fn eopkg_arch(deb_arch: &str) -> String {
-    match deb_arch {
-        "all" => "noarch",
-        "amd64" => "x86_64",
-        "i386" | "i686" => "i586",
-        "arm64" => "aarch64",
-        "armhf" => "armv7l",
-        "armel" => "armv6l",
-        "ppc64el" => "ppc64le",
-        _ => deb_arch,
-    }
-    .to_string()
+/// Architecture écrite dans les métadonnées eopkg.
+///
+/// Solus n'utilise pas `noarch` — ni dans ses dépôts, ni pour ses paquets
+/// installés — et refuse d'installer un paquet ainsi étiqueté :
+///
+/// ```text
+/// Package X (noarch) is not compatible with your x86_64 architecture.
+/// ```
+///
+/// Un `.deb` en `Architecture: all` (polices, documentation, données, pas mal
+/// d'applications Java/Python) produirait donc un eopkg ininstallable. Comme
+/// Solus ne publie que du x86_64, on étiquette systématiquement `x86_64` pour
+/// que le paquet converti soit installable. La charge utile reste celle du
+/// `.deb` source : si celui-ci visait un autre CPU (arm64, i386…), le contenu
+/// ne fonctionnera pas sur x86_64 — d'où l'avertissement émis par l'appelant.
+pub fn eopkg_arch(_deb_arch: &str) -> String {
+    "x86_64".to_string()
 }
 
 /// Normalise une version Debian en version eopkg (`X.Y.Z`).
@@ -407,10 +411,13 @@ mod tests {
 
     #[test]
     fn architectures() {
-        assert_eq!(eopkg_arch("amd64"), "x86_64");
-        assert_eq!(eopkg_arch("all"), "noarch");
-        assert_eq!(eopkg_arch("arm64"), "aarch64");
-        assert_eq!(eopkg_arch("riscv64"), "riscv64");
+        // Solus n'utilise que x86_64 : toute architecture source est ramenée à
+        // x86_64 pour que le paquet reste installable (`noarch` est refusé).
+        for deb_arch in [
+            "amd64", "all", "any", "i386", "i686", "arm64", "armhf", "armel", "ppc64el", "riscv64",
+        ] {
+            assert_eq!(eopkg_arch(deb_arch), "x86_64", "source {deb_arch}");
+        }
     }
 
     #[test]

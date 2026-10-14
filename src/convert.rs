@@ -141,12 +141,21 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
     let version = eopkg::normalize_version(
         fields.get("Version").map(String::as_str).unwrap_or("0.0.0-1"),
     );
-    let arch = eopkg::eopkg_arch(
-        fields
-            .get("Architecture")
-            .map(String::as_str)
-            .unwrap_or("all"),
-    );
+    let deb_arch = fields
+        .get("Architecture")
+        .map(String::as_str)
+        .unwrap_or("all");
+    let arch = eopkg::eopkg_arch(deb_arch);
+    // Le paquet final est toujours étiqueté x86_64 (Solus n'utilise pas
+    // `noarch`). Si la charge utile visait un autre CPU, elle ne tournera pas
+    // sur Solus : on le signale, mais on convertit quand même (le contenu peut
+    // être indépendant de l'architecture, ex. polices ou documentation).
+    if deb_arch != "amd64" && deb_arch != "all" {
+        log.warn(format!(
+            "le .deb vise l'architecture « {deb_arch} » mais le paquet est étiqueté x86_64 : \
+             la charge utile peut ne pas fonctionner sur Solus"
+        ));
+    }
 
     let out = resolve_output(dest, &name, &version, &arch);
     log.info(format!(
