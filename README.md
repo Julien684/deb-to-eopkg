@@ -18,7 +18,7 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.2.3-1-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.2.4-2-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -106,7 +106,22 @@ cargo build --release --target x86_64-unknown-linux-musl
 # paquet .eopkg installable (déposé à la racine : c'est l'artefact publié)
 ./target/x86_64-unknown-linux-musl/release/pack-eopkg \
     target/x86_64-unknown-linux-musl/release/deb-to-eopkg .
+
+# pour republier une même version, le release doit augmenter (voir ci-dessous)
+./target/x86_64-unknown-linux-musl/release/pack-eopkg --release 3 \
+    target/x86_64-unknown-linux-musl/release/deb-to-eopkg .
 ```
+
+### ⚠️ Le *release* doit augmenter à chaque publication
+
+Le nom du paquet est `deb-to-eopkg-<version>-<release>-1-x86_64.eopkg`, et
+**eopkg ne compare que le release**, jamais la chaîne de version
+(`pisi/operations/upgrade.py` : `int(release_installe) < int(release_depot)` ;
+le numéro est lu depuis l'attribut `release` de `<Update>` dans `<History>`).
+Republier en laissant `release` inchangé — même avec une version supérieure —
+rend le paquet invisible à `sudo eopkg up` : eopkg répond alors
+« already at the latest release ». C'est pourquoi la publication d'un nouveau
+build doit toujours incrémenter ce numéro (ou passer `--release N`).
 
 Tests unitaires :
 
