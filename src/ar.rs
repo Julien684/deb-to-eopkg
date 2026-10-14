@@ -128,7 +128,7 @@ mod tests {
         // Archive `ar` de 2 membres, tailles impaire et paire.
         let mut a = Vec::new();
         a.extend_from_slice(AR_MAGIC);
-        let mut push = |a: &mut Vec<u8>, name: &str, body: &[u8]| {
+        let push = |a: &mut Vec<u8>, name: &str, body: &[u8]| {
             let mut h = [b' '; 60];
             h[0..name.len()].copy_from_slice(name.as_bytes());
             let size = format!("{}", body.len());

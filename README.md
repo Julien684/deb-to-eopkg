@@ -18,9 +18,8 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.0.1-1-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.1.0-1-1-x86_64.eopkg
 ```
-
 
 Vérifier :
 
@@ -56,6 +55,16 @@ sudo eopkg install -y /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
 
 ## Options
 
+- `-q`, `--quiet` : mode silencieux. Par défaut la conversion est **verbeuse**
+  (fichier source, membres lus, progression) — utile car une grosse conversion
+  peut durer plusieurs minutes ; `--quiet` ne laisse passer que les erreurs. Le
+  chemin du fichier produit reste affiché sur la sortie standard, ce qui permet
+  de l'enchaîner :
+
+  ```bash
+  out=$(deb-to-eopkg --quiet mon-logiciel.deb /tmp/)
+  ```
+
 - `--deps` : conserve les dépendances `Depends` du `.deb` dans l'eopkg.
   Par défaut elles sont **ignorées** : les noms de paquets Debian (ex : `libc6`)
   ne correspondent pas aux noms eopkg de Solus (ex : `glibc`), et un paquet
@@ -82,6 +91,13 @@ Tests unitaires :
 
 ```bash
 cargo test
+```
+
+Contrôle croisé d'une conversion (le `.eopkg` correspond-il au `.deb` source ?
+chemins, types, modes, SHA1, cibles de liens) :
+
+```bash
+python3 tools/verify_deb_vs_eopkg.py mon-logiciel.deb /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
 ```
 
 ## Limites connues

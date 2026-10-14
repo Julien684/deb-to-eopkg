@@ -29,8 +29,14 @@ OPTIONS :
                     Debian (libc6) ne correspondent pas à ceux de Solus
                     (glibc), et un paquet installé depuis une URL ne peut pas
                     résoudre ses dépendances.
+    -q, --quiet     mode silencieux : n'affiche ni progression ni
+                    avertissements. Le chemin du fichier produit reste
+                    affiché sur la sortie standard.
     -h, --help      affiche cette aide
     -V, --version   affiche la version
+
+La conversion est verbeuse par défaut : elle indique le fichier source, les
+membres lus et une progression régulière (elle peut durer plusieurs minutes).
 
 EXEMPLE :
     deb-to-eopkg mon-logiciel.deb /tmp/
@@ -41,6 +47,7 @@ fn main() -> ExitCode {
     let mut deb = None;
     let mut dest = None;
     let mut keep_deps = false;
+    let mut quiet = false;
 
     for arg in std::env::args().skip(1) {
         match arg.as_str() {
@@ -53,6 +60,7 @@ fn main() -> ExitCode {
                 return ExitCode::SUCCESS;
             }
             "--deps" => keep_deps = true,
+            "-q" | "--quiet" => quiet = true,
             _ if arg.starts_with('-') && arg != "-" => {
                 eprintln!("{TOOL_NAME} : erreur : option inconnue : {arg}");
                 eprintln!("Essayez `{TOOL_NAME} --help`.");
@@ -83,19 +91,25 @@ fn main() -> ExitCode {
         eprintln!("{TOOL_NAME} : erreur : fichier .deb introuvable : {deb}");
         return ExitCode::from(2);
     }
-    if !deb.to_lowercase().ends_with(".deb") {
+    if !deb.to_lowercase().ends_with(".deb") && !quiet {
         eprintln!("{TOOL_NAME} : avertissement : {deb} ne finit pas par .deb");
     }
 
-    match convert::convert(deb_path, std::path::Path::new(&dest), keep_deps) {
+    let opts = convert::Options {
+        keep_deps,
+        quiet,
+    };
+    match convert::convert(deb_path, std::path::Path::new(&dest), opts) {
         Ok(summary) => {
-            eprintln!(
-                "{TOOL_NAME} : génération : {} ({} fichiers, {} octets de données, arch={})",
-                summary.out.display(),
-                summary.files,
-                summary.bytes,
-                summary.arch
-            );
+            if !quiet {
+                eprintln!(
+                    "{TOOL_NAME} : génération : {} ({} fichiers, {} octets de données, arch={})",
+                    summary.out.display(),
+                    summary.files,
+                    summary.bytes,
+                    summary.arch
+                );
+            }
             // Le chemin produit sur la sortie standard, pour l'enchaîner dans
             // un script (`out=$(deb-to-eopkg …)`).
             println!("{}", summary.out.display());

@@ -18,6 +18,68 @@ use crate::TOOL_NAME;
 /// Niveau de compression xz du chargeur (le défaut de `tarfile`).
 const XZ_PRESET: u32 = 6;
 
+/// Fréquence des lignes de progression (mode verbeux).
+const PROGRESS_BYTES: u64 = 32 * 1024 * 1024;
+const PROGRESS_FILES: u64 = 200;
+
+/// Options d'exécution de la conversion.
+#[derive(Debug, Clone, Copy)]
+pub struct Options {
+    /// Conserver les dépendances `Depends` du `.deb` dans l'eopkg.
+    pub keep_deps: bool,
+    /// Ne montrer que les erreurs : ni progression, ni avertissements.
+    pub quiet: bool,
+}
+
+impl Default for Options {
+    fn default() -> Options {
+        Options {
+            keep_deps: false,
+            quiet: false,
+        }
+    }
+}
+
+/// Journalisation sur la sortie d'erreur.
+///
+/// L'outil est verbeux par défaut (une conversion peut durer plusieurs
+/// minutes : l'utilisateur doit voir qu'il se passe quelque chose) ; `--quiet`
+/// ne laisse passer que les erreurs.
+#[derive(Clone, Copy)]
+struct Log {
+    quiet: bool,
+}
+
+impl Log {
+    fn info(self, msg: impl std::fmt::Display) {
+        if !self.quiet {
+            eprintln!("{TOOL_NAME} : {msg}");
+        }
+    }
+
+    fn warn(self, msg: impl std::fmt::Display) {
+        if !self.quiet {
+            eprintln!("{TOOL_NAME} : avertissement : {msg}");
+        }
+    }
+}
+
+/// Taille lisible (`1.7 Mio`), pour les messages.
+fn human_size(bytes: u64) -> String {
+    const UNITS: [&str; 4] = ["o", "Kio", "Mio", "Gio"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} o")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
 /// Résultat d'une conversion réussie.
 #[derive(Debug)]
 pub struct Summary {
@@ -31,7 +93,11 @@ pub struct Summary {
 ///
 /// `dest` est soit un répertoire (terminé par `/`, ou existant), auquel cas le
 /// nom de fichier est déduit du paquet, soit le chemin complet du `.eopkg`.
-pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> {
+pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
+    let log = Log { quiet: opts.quiet };
+    let deb_size = std::fs::metadata(deb).map(|m| m.len()).unwrap_or(0);
+    log.info(format!("source : {} ({})", deb.display(), human_size(deb_size)));
+
     let members = ar::list_members(deb)?;
 
     let control_member = members
@@ -47,14 +113,21 @@ pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> 
         .first()
         .ok_or_else(|| invalid("pas de membre data.tar.* dans le .deb"))?;
     if data_members.len() > 1 {
-        eprintln!(
-            "{TOOL_NAME} : avertissement : plusieurs membres data.tar.*, on utilise {:?}",
+        log.warn(format!(
+            "plusieurs membres data.tar.*, on utilise {:?}",
             data_member.name
-        );
+        ));
     }
 
     let control_fmt = fmt_of(control_member)?;
     let data_fmt = fmt_of(data_member)?;
+    log.info(format!(
+        "membres : {} ({}) et {} ({})",
+        control_member.name,
+        control_fmt.name(),
+        data_member.name,
+        data_fmt.name()
+    ));
 
     // ---- champs de contrôle ----
     let fields = read_control(deb, control_member, control_fmt)?;
@@ -73,11 +146,19 @@ pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> 
     );
 
     let out = resolve_output(dest, &name, &version, &arch);
+    log.info(format!(
+        "paquet {name} {version}, architecture {arch} -> {}",
+        out.display()
+    ));
 
     // ---- chargeur : on écrit install.tar.xz en flux vers un fichier tampon ----
     let spool = Spool::new()?;
     let mut records: Vec<FileRecord> = Vec::new();
     let mut total: u64 = 0;
+    // Suivi de progression (mode verbeux).
+    let mut processed: u64 = 0;
+    let mut last_bytes: u64 = 0;
+    let mut last_files: u64 = 0;
 
     {
         let spool_file = File::create(spool.path())?;
@@ -121,7 +202,7 @@ pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> 
                 });
                 total += size;
             } else if entry_type.is_symlink() {
-                let target = link_target(entry.link_name()?, &path);
+                let target = link_target(entry.link_name()?, &path, log);
                 pw.add_symlink(&path, mode, &target)?;
                 records.push(FileRecord {
                     path,
@@ -133,7 +214,7 @@ pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> 
                     hash: String::new(),
                 });
             } else if entry_type.is_hard_link() {
-                let target = link_target(entry.link_name()?, &path);
+                let target = link_target(entry.link_name()?, &path, log);
                 pw.add_hardlink(&path, mode, &target)?;
                 records.push(FileRecord {
                     path,
@@ -145,10 +226,21 @@ pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> 
                     hash: String::new(),
                 });
             } else {
-                eprintln!(
-                    "{TOOL_NAME} : avertissement : entrée ignorée (type {:?}) : {path}",
-                    entry_type
-                );
+                log.warn(format!("entrée ignorée (type {:?}) : {path}", entry_type));
+            }
+
+            processed += 1;
+            if !log.quiet
+                && (total - last_bytes >= PROGRESS_BYTES
+                    || processed - last_files >= PROGRESS_FILES)
+            {
+                log.info(format!(
+                    "{} fichiers, {} écrits",
+                    records.len(),
+                    human_size(total)
+                ));
+                last_bytes = total;
+                last_files = processed;
             }
         }
 
@@ -163,8 +255,14 @@ pub fn convert(deb: &Path, dest: &Path, keep_deps: bool) -> io::Result<Summary> 
 
     // ---- métadonnées ----
     let mut info = PackageInfo::from_control(&fields, &name, &version, &arch);
-    if keep_deps {
-        info.deps = parse_deps(fields.get("Depends").map(String::as_str).unwrap_or(""));
+    if opts.keep_deps {
+        log.info("dépendances Depends conservées");
+        info.deps = parse_deps(
+            fields.get("Depends").map(String::as_str).unwrap_or(""),
+            log,
+        );
+    } else {
+        log.info("dépendances Depends ignorées (--deps pour les conserver)");
     }
 
     eopkg::write_eopkg(&out, &info, &records, TarSource::File(spool.path()))?;
@@ -257,7 +355,7 @@ fn parse_control_fields(text: &str) -> BTreeMap<String, String> {
 ///
 /// Les dépendances qualifiées par architecture (`arch:nom`) sont ignorées :
 /// elles n'ont pas d'équivalent eopkg.
-fn parse_deps(deps: &str) -> Vec<Dependency> {
+fn parse_deps(deps: &str, log: Log) -> Vec<Dependency> {
     let mut out = Vec::new();
     for part in deps.split(',') {
         let part = part.trim();
@@ -282,7 +380,7 @@ fn parse_deps(deps: &str) -> Vec<Dependency> {
             continue;
         }
         if name.contains(':') {
-            eprintln!("{TOOL_NAME} : avertissement : dépendance par architecture ignorée : {part}");
+            log.warn(format!("dépendance par architecture ignorée : {part}"));
             continue;
         }
         out.push(Dependency {
@@ -301,12 +399,10 @@ fn normalize_path(path: &Path) -> String {
 }
 
 /// Cible d'un lien, normalisée en relatif si elle était absolue.
-fn link_target(raw: Option<Cow<'_, Path>>, path: &str) -> String {
+fn link_target(raw: Option<Cow<'_, Path>>, path: &str, log: Log) -> String {
     let target = raw.map(|c| c.to_string_lossy().into_owned()).unwrap_or_default();
     if let Some(rest) = target.strip_prefix('/') {
-        eprintln!(
-            "{TOOL_NAME} : avertissement : lien absolu normalisé en relatif : {path} -> {target}"
-        );
+        log.warn(format!("lien absolu normalisé en relatif : {path} -> {target}"));
         rest.to_string()
     } else {
         target
@@ -412,7 +508,7 @@ mod tests {
 
     #[test]
     fn dependances() {
-        let d = parse_deps("libc6 (>= 2.34), zlib1g, arch:foo");
+        let d = parse_deps("libc6 (>= 2.34), zlib1g, arch:foo", Log { quiet: true });
         assert_eq!(d.len(), 2);
         assert_eq!(d[0].name, "libc6");
         assert_eq!(d[0].constraint.as_deref(), Some(">= 2.34"));
