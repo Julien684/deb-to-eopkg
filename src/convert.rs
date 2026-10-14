@@ -65,7 +65,7 @@ impl Log {
 }
 
 /// Taille lisible (`1.7 Mio`), pour les messages.
-fn human_size(bytes: u64) -> String {
+pub fn human_size(bytes: u64) -> String {
     const UNITS: [&str; 4] = ["o", "Kio", "Mio", "Gio"];
     let mut value = bytes as f64;
     let mut unit = 0;
@@ -87,6 +87,9 @@ pub struct Summary {
     pub files: u64,
     pub bytes: u64,
     pub arch: String,
+    /// Dépendances `Depends` lues dans le `.deb`. Toujours renseignées, pour
+    /// information ; elles ne sont inscrites dans l'eopkg que si `--deps`.
+    pub deps: Vec<Dependency>,
 }
 
 /// Convertit `deb` en `.eopkg`.
@@ -255,12 +258,16 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
 
     // ---- métadonnées ----
     let mut info = PackageInfo::from_control(&fields, &name, &version, &arch);
+    // On analyse `Depends` dans tous les cas : la liste est reprise à la fin
+    // de la conversion, pour information. Elle n'est inscrite dans l'eopkg que
+    // si `--deps` (les noms Debian ne correspondent pas aux noms eopkg).
+    let deps = parse_deps(
+        fields.get("Depends").map(String::as_str).unwrap_or(""),
+        log,
+    );
     if opts.keep_deps {
-        log.info("dépendances Depends conservées");
-        info.deps = parse_deps(
-            fields.get("Depends").map(String::as_str).unwrap_or(""),
-            log,
-        );
+        log.info("dépendances Depends conservées dans l'eopkg");
+        info.deps = deps.clone();
     } else {
         log.info("dépendances Depends ignorées (--deps pour les conserver)");
     }
@@ -272,6 +279,7 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
         files: records.len() as u64,
         bytes: total,
         arch,
+        deps,
     })
 }
 

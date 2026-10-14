@@ -55,11 +55,15 @@ sudo eopkg install -y /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
 
 ## Options
 
+- `-i`, `--install` : lance l'installation après la conversion, avec
+  `sudo eopkg install -y <fichier>`. La conversion doit avoir réussi. À
+  réserver aux systèmes Solus ; `sudo` peut demander le mot de passe.
+
 - `-q`, `--quiet` : mode silencieux. Par défaut la conversion est **verbeuse**
-  (fichier source, membres lus, progression) — utile car une grosse conversion
-  peut durer plusieurs minutes ; `--quiet` ne laisse passer que les erreurs. Le
-  chemin du fichier produit reste affiché sur la sortie standard, ce qui permet
-  de l'enchaîner :
+  (fichier source, membres lus, progression régulière) — utile car une grosse
+  conversion peut durer plusieurs minutes ; `--quiet` ne laisse passer que les
+  erreurs. Le chemin du fichier produit reste affiché sur la sortie standard,
+  ce qui permet de l'enchaîner :
 
   ```bash
   out=$(deb-to-eopkg --quiet mon-logiciel.deb /tmp/)
@@ -69,7 +73,17 @@ sudo eopkg install -y /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
   Par défaut elles sont **ignorées** : les noms de paquets Debian (ex : `libc6`)
   ne correspondent pas aux noms eopkg de Solus (ex : `glibc`), et un paquet
   installé depuis une URL ne peut pas résoudre ses dépendances. C'est donc le
-  comportement le plus sûr par défaut.
+  comportement le plus sûr par défaut. La liste est de toute façon affichée à la
+  fin de la conversion, pour information :
+
+  ```
+  deb-to-eopkg : dépendances du .deb (9) :
+      libc6 (>= 2.38)
+      zlib1g (>= 1:1.2.2)
+      perl
+      ...
+  ```
+
 - `-h`, `--help` / `-V`, `--version`.
 
 ## Compilation
