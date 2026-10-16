@@ -14,7 +14,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
-use deb_to_eopkg::{convert, TOOL_NAME, VERSION};
+use deb_to_eopkg::{color, convert, TOOL_NAME, VERSION};
 
 const HELP: &str = "\
 deb-to-eopkg — convertit un paquet Debian (.deb) en paquet Solus (.eopkg).
@@ -43,6 +43,8 @@ OPTIONS :
     -q, --quiet     mode silencieux : n'affiche ni progression ni
                     avertissements. Le chemin du fichier produit reste
                     affiché sur la sortie standard.
+    --color WHEN    coloration : auto (défaut, seulement si la sortie est un
+                    terminal), always ou never. Respecte NO_COLOR et TERM=dumb.
     -h, --help      affiche cette aide
     -V, --version   affiche la version
 
@@ -67,8 +69,10 @@ fn main() -> ExitCode {
     let mut keep_deps = false;
     let mut quiet = false;
     let mut install = false;
+    let mut color = color::Choice::Auto;
 
-    for arg in std::env::args().skip(1) {
+    let mut args = std::env::args().skip(1);
+    while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
                 print!("{HELP}");
@@ -81,6 +85,22 @@ fn main() -> ExitCode {
             "--deps" => keep_deps = true,
             "-i" | "-it" | "--install" => install = true,
             "-q" | "--quiet" => quiet = true,
+            "--color" => match args.next().as_deref().map(str::parse::<color::Choice>) {
+                Some(Ok(choice)) => color = choice,
+                _ => {
+                    eprintln!("{TOOL_NAME} : erreur : --color attend auto, always ou never.");
+                    return ExitCode::from(2);
+                }
+            },
+            _ if arg.starts_with("--color=") => {
+                match arg["--color=".len()..].parse::<color::Choice>() {
+                    Ok(choice) => color = choice,
+                    Err(()) => {
+                        eprintln!("{TOOL_NAME} : erreur : --color attend auto, always ou never.");
+                        return ExitCode::from(2);
+                    }
+                }
+            }
             _ if arg.starts_with('-') && arg != "-" => {
                 eprintln!("{TOOL_NAME} : erreur : option inconnue : {arg}");
                 eprintln!("Essayez `{TOOL_NAME} --help`.");
@@ -122,6 +142,8 @@ fn main() -> ExitCode {
     };
 
     let opts = convert::Options { keep_deps, quiet };
+    // Couleurs : une par type de script, une pour les dépendances.
+    let palette = color::Palette::for_stderr(color);
 
     let summary = match convert::convert(deb_path, &dest, opts) {
         Ok(summary) => summary,
@@ -150,8 +172,11 @@ fn main() -> ExitCode {
             );
             for dep in &summary.deps {
                 match &dep.constraint {
-                    Some(constraint) => eprintln!("    {} ({constraint})", dep.name),
-                    None => eprintln!("    {}", dep.name),
+                    Some(constraint) => eprintln!(
+                        "    {}",
+                        palette.dependency(&format!("{} ({constraint})", dep.name))
+                    ),
+                    None => eprintln!("    {}", palette.dependency(&dep.name)),
                 }
             }
         }
@@ -165,16 +190,21 @@ fn main() -> ExitCode {
                 summary.scripts.len()
             );
             for script in &summary.scripts {
-                eprintln!(
-                    "{TOOL_NAME} : --- {} ({}) ---",
+                let header = format!(
+                    "--- {} ({}) ---",
                     script.name,
                     deb_to_eopkg::convert::human_size(script.size() as u64)
                 );
+                eprintln!(
+                    "{TOOL_NAME} : {}",
+                    palette.script_header(&script.name, &header)
+                );
                 let text = script.text();
-                eprint!("{text}");
-                if !text.ends_with('\n') {
-                    eprintln!();
-                }
+                // On retire le saut de ligne final avant de colorer : la
+                // séquence de remise à zéro reste ainsi sur la dernière ligne
+                // du script au lieu de flotter sur la ligne suivante.
+                let body = text.strip_suffix('\n').unwrap_or(&text);
+                eprintln!("{}", palette.script_body(&script.name, body));
             }
             eprintln!(
                 "{TOOL_NAME} : eopkg ne lance aucun script à l'installation \

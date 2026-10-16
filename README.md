@@ -18,7 +18,7 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.4.0-4-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.5.0-5-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -65,6 +65,12 @@ sudo eopkg install /tmp/mon-logiciel-1.2.3-1-1-x86_64.eopkg
   affiche sa question de confirmation, vous pouvez donc renoncer à
   l'installation. À réserver aux systèmes Solus ; `sudo` peut demander le mot
   de passe.
+
+- `--color WHEN` : `auto` (défaut), `always` ou `never`. En mode `auto`, les
+  couleurs ne sont émises que si la sortie est un terminal, et jamais si
+  `NO_COLOR` est définie ou `TERM=dumb`. Chaque type de script de maintenance a
+  sa couleur (`preinst` cyan, `postinst` vert, `prerm` jaune, `postrm` magenta)
+  et les dépendances sont en bleu.
 
 - `-q`, `--quiet` : mode silencieux. Par défaut la conversion est **verbeuse**
   (fichier source, membres lus, progression régulière) — utile car une grosse
@@ -140,12 +146,12 @@ python3 tools/verify_deb_vs_eopkg.py mon-logiciel.deb /tmp/mon-logiciel-1.2.3-1-
 
 - **Les scripts de maintenance du `.deb` ne sont pas reportés** (`preinst`,
   `postinst`, `prerm`, `postrm`). Ils sont détectés et **affichés en entier**
-  à la fin de la conversion, mais eopkg **n'exécute aucun script à
-  l'installation** : le seul mécanisme prévu par pisi (COMAR, scripts Python
-  déclarés dans `<Provides><COMAR>` et enregistrés via D-Bus) n'existe plus sur
-  Solus — aucun paquet `comar` dans le dépôt, démon absent, et le module qui les
-  lançait (`pisi/comariface.py`) n'est plus appelé. Un paquet converti se
-  comporte donc comme un simple paquet de fichiers.
+  (chacun dans sa couleur) à la fin de la conversion, mais eopkg **n'exécute
+  aucun script à l'installation** : le seul mécanisme prévu par pisi (COMAR,
+  scripts Python déclarés dans `<Provides><COMAR>` et enregistrés via D-Bus)
+  n'existe plus sur Solus — aucun paquet `comar` dans le dépôt, démon absent,
+  et le module qui les lançait (`pisi/comariface.py`) n'est plus appelé. Un
+  paquet converti se comporte donc comme un simple paquet de fichiers.
 - **Le paquet produit est toujours étiqueté `x86_64`.** Solus n'utilise pas
   `noarch` (aucun paquet de son dépôt, aucun paquet installé) et refuse
   d'installer un paquet ainsi étiqueté :

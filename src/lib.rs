@@ -16,6 +16,7 @@
 //! depuis une URL sur Solus.
 
 pub mod ar;
+pub mod color;
 pub mod compress;
 pub mod convert;
 pub mod eopkg;
