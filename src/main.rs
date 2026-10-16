@@ -48,9 +48,10 @@ OPTIONS :
 
 La conversion est verbeuse par défaut : elle indique le fichier source, les
 membres lus et une progression régulière (elle peut durer plusieurs minutes).
-Les dépendances du .deb et, s'il y en a, ses scripts de maintenance sont
-affichés à la fin. Ces derniers ne sont PAS reportés : eopkg n'exécute aucun
-script à l'installation (le mécanisme COMAR de pisi n'existe plus sur Solus).
+Les dépendances du .deb et, s'il y en a, le CONTENU de ses scripts de
+maintenance sont affichés à la fin. Ces scripts ne sont PAS reportés : eopkg
+n'exécute aucun script à l'installation (le mécanisme COMAR de pisi n'existe
+plus sur Solus).
 
 EXEMPLES :
     deb-to-eopkg mon-logiciel.deb
@@ -155,15 +156,25 @@ fn main() -> ExitCode {
             }
         }
         // Scripts de maintenance : eopkg n'exécute aucun script à
-        // l'installation, ils ne peuvent donc pas être reportés. On les
-        // signale pour que l'utilisateur sache ce qu'il perd.
+        // l'installation, ils ne peuvent pas être reportés. On affiche leur
+        // contenu en entier pour que l'utilisateur voie précisément ce qu'il
+        // perd (et puisse le reprendre à la main si nécessaire).
         if !summary.scripts.is_empty() {
             eprintln!(
                 "{TOOL_NAME} : scripts de maintenance du .deb ({}), NON reportables :",
                 summary.scripts.len()
             );
             for script in &summary.scripts {
-                eprintln!("    {} ({} octets)", script.name, script.size);
+                eprintln!(
+                    "{TOOL_NAME} : --- {} ({}) ---",
+                    script.name,
+                    deb_to_eopkg::convert::human_size(script.size() as u64)
+                );
+                let text = script.text();
+                eprint!("{text}");
+                if !text.ends_with('\n') {
+                    eprintln!();
+                }
             }
             eprintln!(
                 "{TOOL_NAME} : eopkg ne lance aucun script à l'installation \

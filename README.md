@@ -18,7 +18,7 @@ d'exécution, ce qui est indispensable pour une installation depuis une URL.
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.3.0-3-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.4.0-4-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -139,11 +139,11 @@ python3 tools/verify_deb_vs_eopkg.py mon-logiciel.deb /tmp/mon-logiciel-1.2.3-1-
 ## Limites connues
 
 - **Les scripts de maintenance du `.deb` ne sont pas reportés** (`preinst`,
-  `postinst`, `prerm`, `postrm`). Ils sont détectés et affichés à la fin de la
-  conversion, mais eopkg **n'exécute aucun script à l'installation** : le seul
-  mécanisme prévu par pisi (COMAR, scripts Python déclarés dans
-  `<Provides><COMAR>` et enregistrés via D-Bus) n'existe plus sur Solus —
-  aucun paquet `comar` dans le dépôt, démon absent, et le module qui les
+  `postinst`, `prerm`, `postrm`). Ils sont détectés et **affichés en entier**
+  à la fin de la conversion, mais eopkg **n'exécute aucun script à
+  l'installation** : le seul mécanisme prévu par pisi (COMAR, scripts Python
+  déclarés dans `<Provides><COMAR>` et enregistrés via D-Bus) n'existe plus sur
+  Solus — aucun paquet `comar` dans le dépôt, démon absent, et le module qui les
   lançait (`pisi/comariface.py`) n'est plus appelé. Un paquet converti se
   comporte donc comme un simple paquet de fichiers.
 - **Le paquet produit est toujours étiqueté `x86_64`.** Solus n'utilise pas

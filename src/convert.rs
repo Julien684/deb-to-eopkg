@@ -47,13 +47,25 @@ pub const MAINTAINER_SCRIPTS: [&str; 4] = ["preinst", "postinst", "prerm", "post
 ///
 /// eopkg n'exécute aucun script à l'installation — le mécanisme COMAR de pisi
 /// n'existe plus sur Solus — donc ces scripts ne sont jamais convertis ; ils
-/// sont seulement signalés à l'utilisateur, qui doit savoir ce qui est perdu.
+/// sont seulement affichés à l'utilisateur, qui doit savoir ce qu'il perd.
 #[derive(Debug, Clone)]
 pub struct DebScript {
     /// `preinst`, `postinst`, `prerm` ou `postrm`.
     pub name: String,
-    /// Taille en octets, pour l'affichage.
-    pub size: usize,
+    /// Contenu brut du script, tel qu'il est stocké dans le `.deb`.
+    pub content: Vec<u8>,
+}
+
+impl DebScript {
+    /// Taille du script en octets.
+    pub fn size(&self) -> usize {
+        self.content.len()
+    }
+
+    /// Contenu décodé pour l'affichage (les octets invalides sont remplacés).
+    pub fn text(&self) -> Cow<'_, str> {
+        String::from_utf8_lossy(&self.content)
+    }
 }
 
 /// Journalisation sur la sortie d'erreur.
@@ -373,7 +385,7 @@ fn collect_control_entries(blob: &[u8]) -> io::Result<ControlTar> {
         } else if MAINTAINER_SCRIPTS.contains(&base.as_str()) {
             scripts.push(DebScript {
                 name: base,
-                size: content.len(),
+                content,
             });
         }
     }
@@ -629,7 +641,14 @@ mod tests {
         // `conffiles` sont ignorés), et ils ressortent dans l'ordre canonique.
         let names: Vec<&str> = parsed.scripts.iter().map(|s| s.name.as_str()).collect();
         assert_eq!(names, vec!["preinst", "postinst", "postrm"]);
-        assert!(parsed.scripts.iter().all(|s| s.size > 0));
+        assert!(parsed.scripts.iter().all(|s| s.size() > 0));
+        // Le contenu est conservé tel quel, pour l'afficher.
+        let postinst = parsed
+            .scripts
+            .iter()
+            .find(|s| s.name == "postinst")
+            .unwrap();
+        assert_eq!(postinst.text(), "#!/bin/sh\necho hi\n");
     }
 
     #[test]
