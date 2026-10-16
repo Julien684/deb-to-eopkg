@@ -1,5 +1,10 @@
 # deb-to-eopkg
 
+> **Vibe codé.** Ce logiciel a été écrit en dialoguant avec un assistant IA
+> (Hermes Agent), pas à la main. Il est couvert par des tests unitaires et
+> vérifié de bout en bout sur une vraie VM Solus, mais son code n'a pas été
+> relu ligne à ligne par un humain — à garder en tête avant de s'y fier.
+
 Un petit outil en **Rust** qui convertit un paquet Debian (`.deb`) en paquet
 Solus (`.eopkg`) installable.
 
@@ -22,7 +27,7 @@ sert de repli).
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.6.0-6-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.6.1-7-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -183,6 +188,11 @@ GPL v3. Voir `LICENSE`.
 
 # deb-to-eopkg (English)
 
+> **Vibe coded.** This software was written by conversing with an AI assistant
+> (Hermes Agent) rather than by hand. It is covered by unit tests and verified
+> end to end on a real Solus VM, but its code has not been reviewed line by
+> line by a human — keep that in mind before relying on it.
+
 A small **Rust** tool that converts a Debian package (`.deb`) into an
 installable Solus package (`.eopkg`).
 
@@ -205,7 +215,7 @@ fallback).
 The package is self-contained, it installs as-is:
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.6.0-6-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.6.1-7-1-x86_64.eopkg
 ```
 
 Check it:
