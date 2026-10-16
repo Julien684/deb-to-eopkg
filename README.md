@@ -13,12 +13,16 @@ SHA1. Les liens symboliques et physiques sont conservés.
 Le binaire est **statique** (musl) : le paquet n'a aucune dépendance
 d'exécution, ce qui est indispensable pour une installation depuis une URL.
 
+Les messages existent en **français et en anglais** et suivent la langue du
+système (`LC_ALL`, `LC_MESSAGES`, `LANG`, puis `/etc/locale.conf` ; l'anglais
+sert de repli).
+
 ## Installation
 
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.5.0-5-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.6.0-6-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -174,3 +178,128 @@ python3 tools/verify_deb_vs_eopkg.py mon-logiciel.deb /tmp/mon-logiciel-1.2.3-1-
 ## Licence
 
 GPL v3. Voir `LICENSE`.
+
+---
+
+# deb-to-eopkg (English)
+
+A small **Rust** tool that converts a Debian package (`.deb`) into an
+installable Solus package (`.eopkg`).
+
+It reads the `ar` + `tar` structure of the `.deb` directly (no `dpkg-deb`
+needed) — `data.tar` compressed with **gzip, xz, bzip2, lzma or zstd** — then
+writes a conformant `.eopkg`: a ZIP of three members (`metadata.xml`,
+`files.xml`, `install.tar.xz`), carrying the right type for every file
+(`executable`, `doc`, `library`, `config`, …), its mode, uid/gid and SHA1
+hash. Symlinks and hard links are preserved.
+
+The binary is **static** (musl): the package has no runtime dependency, which
+is required to install it from a URL.
+
+Messages exist in **French and English** and follow the system language
+(`LC_ALL`, `LC_MESSAGES`, `LANG`, then `/etc/locale.conf`; English is the
+fallback).
+
+## Installation
+
+The package is self-contained, it installs as-is:
+
+```bash
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.6.0-6-1-x86_64.eopkg
+```
+
+Check it:
+
+```bash
+which deb-to-eopkg
+deb-to-eopkg --help
+```
+
+## Usage
+
+```
+deb-to-eopkg package.deb
+deb-to-eopkg package.deb destination/
+deb-to-eopkg package.deb path/to/package.eopkg
+```
+
+- `package.deb`: the `.deb` file to convert.
+- `destination` *(optional)*: a **directory** (the tool writes
+  `name-version-release-arch.eopkg` inside it) **or** the **full path** of the
+  `.eopkg` to produce. **With no destination, the `.eopkg` is written next to
+  the `.deb`.**
+
+```bash
+deb-to-eopkg my-app.deb
+# -> ./my-app-1.2.3-1-1-x86_64.eopkg (next to the .deb)
+
+deb-to-eopkg my-app.deb /tmp/
+# -> /tmp/my-app-1.2.3-1-1-x86_64.eopkg
+```
+
+Then install the result:
+
+```bash
+sudo eopkg install /tmp/my-app-1.2.3-1-1-x86_64.eopkg
+```
+
+## Options
+
+- `-i`, `--install`: run the installation after the conversion, with
+  `sudo eopkg install <file>`. The conversion must have succeeded. eopkg then
+  asks for confirmation, so you can still back out. Meant for Solus systems;
+  `sudo` may ask for your password.
+- `--color WHEN`: `auto` (default), `always` or `never`. In `auto` mode colours
+  are only emitted when the output is a terminal, and never when `NO_COLOR` is
+  set or `TERM=dumb`. Each maintainer script has its own colour (`preinst`
+  cyan, `postinst` green, `prerm` yellow, `postrm` magenta) and dependencies
+  are blue.
+- `-q`, `--quiet`: quiet mode. The conversion is **verbose** by default
+  (source file, members read, regular progress) — useful because a large
+  conversion can take several minutes; `--quiet` lets only errors through. The
+  produced file path is still printed on standard output, so it can be
+  chained:
+
+  ```bash
+  out=$(deb-to-eopkg --quiet my-app.deb /tmp/)
+  ```
+
+- `--deps`: keep the `.deb`'s `Depends` dependencies in the eopkg. They are
+  **dropped** by default: Debian package names (e.g. `libc6`) do not match
+  Solus eopkg names (e.g. `glibc`), and a package installed from a URL cannot
+  resolve its dependencies. The list is printed at the end of the conversion
+  either way, for information.
+- `-h`, `--help` / `-V`, `--version`.
+
+## Known limitations
+
+- **The `.deb` maintainer scripts are not carried over** (`preinst`,
+  `postinst`, `prerm`, `postrm`). They are detected and **printed in full**
+  (each in its own colour) at the end of the conversion, but eopkg **runs no
+  script at install time**: the only mechanism pisi provided (COMAR, Python
+  scripts declared in `<Provides><COMAR>` and registered over D-Bus) no longer
+  exists on Solus — no `comar` package in the repository, no daemon, and the
+  module that used to run them (`pisi/comariface.py`) is never called. A
+  converted package therefore behaves as a plain file package.
+- **The produced package is always tagged `x86_64`.** Solus does not use
+  `noarch` (no such package in its repository, none installed) and refuses to
+  install a package tagged that way:
+  `Package X (noarch) is not compatible with your x86_64 architecture.`
+  An `Architecture: all` `.deb` (fonts, documentation, data, a fair number of
+  Java/Python applications) is therefore tagged `x86_64` to stay installable.
+  If the payload really targets another CPU (arm64, i386…), a warning is
+  issued: the content will not work on Solus.
+- **Dependency names** are not translated (Debian → Solus), hence the default
+  that drops them.
+- Architecture-qualified dependencies (`arch:name`) are ignored.
+- The `.deb`'s **directories** are not listed in `files.xml`: they are created
+  while extracting the payload, so an empty directory is not preserved.
+- Special permissions (setuid/setgid) are kept as they are.
+- Metadata text is taken verbatim from the `.deb`: a non-ASCII description can
+  make `eopkg info` fail on a system whose locale is not UTF-8 (installing
+  still works). The `deb-to-eopkg` package's own metadata is ASCII for that
+  reason.
+
+## License
+
+GPL v3. See `LICENSE`.

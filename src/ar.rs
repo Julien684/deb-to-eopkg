@@ -9,6 +9,8 @@ use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::Path;
 
+use crate::i18n;
+
 /// Octets magiques de toute archive `ar`.
 pub const AR_MAGIC: &[u8] = b"!<arch>\n";
 
@@ -34,7 +36,7 @@ impl ArMember {
 /// Liste les membres d'une archive `ar`, dans l'ordre du fichier.
 ///
 /// Erreur si la signature `!<arch>\n` est absente (ce n'est pas un `.deb`).
-pub fn list_members(path: &Path) -> io::Result<Vec<ArMember>> {
+pub fn list_members(path: &Path, texts: &i18n::Texts) -> io::Result<Vec<ArMember>> {
     let mut f = File::open(path)?;
     let end = f.seek(SeekFrom::End(0))?;
 
@@ -44,7 +46,7 @@ pub fn list_members(path: &Path) -> io::Result<Vec<ArMember>> {
     if &magic != AR_MAGIC {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            "ce n'est pas une archive `ar` (signature \"!<arch>\\n\" absente)",
+            texts.err_not_ar,
         ));
     }
 
@@ -66,7 +68,10 @@ pub fn list_members(path: &Path) -> io::Result<Vec<ArMember>> {
         let size: u64 = size_str.parse().map_err(|_| {
             io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("taille de membre `ar` invalide ({size_str:?}) pour {name:?}"),
+                i18n::fill(
+                    texts.err_bad_member_size,
+                    &[&format!("{size_str:?}"), &format!("{name:?}")],
+                ),
             )
         })?;
 
@@ -95,7 +100,7 @@ mod tests {
         let dir = std::env::temp_dir();
         let p = dir.join("deb-to-eopkg-ar-test-not-ar");
         std::fs::write(&p, b"not an ar archive").unwrap();
-        assert!(list_members(&p).is_err());
+        assert!(list_members(&p, i18n::Lang::Fr.texts()).is_err());
         let _ = std::fs::remove_file(&p);
     }
 
@@ -116,7 +121,7 @@ mod tests {
         let dir = std::env::temp_dir();
         let p = dir.join("deb-to-eopkg-ar-test-gnu");
         std::fs::write(&p, &a).unwrap();
-        let m = list_members(&p).unwrap();
+        let m = list_members(&p, i18n::Lang::Fr.texts()).unwrap();
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].name, "control.tar.xz");
         assert_eq!(m[0].size, 6);
@@ -145,7 +150,7 @@ mod tests {
         let dir = std::env::temp_dir();
         let p = dir.join("deb-to-eopkg-ar-test");
         std::fs::write(&p, &a).unwrap();
-        let m = list_members(&p).unwrap();
+        let m = list_members(&p, i18n::Lang::Fr.texts()).unwrap();
         assert_eq!(m.len(), 2);
         assert_eq!(m[0].name, "debian-binary");
         assert_eq!(m[0].size, 4);

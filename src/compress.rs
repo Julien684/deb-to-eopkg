@@ -37,7 +37,7 @@ impl Format {
     /// Nom court, pour les messages.
     pub fn name(self) -> &'static str {
         match self {
-            Format::Plain => "tar (non compressé)",
+            Format::Plain => "tar",
             Format::Gzip => "gzip",
             Format::Bzip2 => "bzip2",
             Format::Xz => "xz",

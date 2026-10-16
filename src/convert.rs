@@ -12,6 +12,7 @@ use sha1::{Digest, Sha1};
 use crate::ar;
 use crate::compress::{self, Format};
 use crate::eopkg::{self, Dependency, FileRecord, PackageInfo, TarSource};
+use crate::i18n;
 use crate::payload::PayloadWriter;
 use crate::TOOL_NAME;
 
@@ -29,6 +30,8 @@ pub struct Options {
     pub keep_deps: bool,
     /// Ne montrer que les erreurs : ni progression, ni avertissements.
     pub quiet: bool,
+    /// Langue des messages.
+    pub lang: i18n::Lang,
 }
 
 impl Default for Options {
@@ -36,6 +39,7 @@ impl Default for Options {
         Options {
             keep_deps: false,
             quiet: false,
+            lang: i18n::Lang::detect(),
         }
     }
 }
@@ -76,6 +80,7 @@ impl DebScript {
 #[derive(Clone, Copy)]
 struct Log {
     quiet: bool,
+    texts: &'static i18n::Texts,
 }
 
 impl Log {
@@ -87,24 +92,25 @@ impl Log {
 
     fn warn(self, msg: impl std::fmt::Display) {
         if !self.quiet {
-            eprintln!("{TOOL_NAME} : avertissement : {msg}");
+            let msg = msg.to_string();
+            eprintln!("{TOOL_NAME} : {}", i18n::fill(self.texts.warn_prefix, &[&msg]));
         }
     }
 }
 
-/// Taille lisible (`1.7 Mio`), pour les messages.
-pub fn human_size(bytes: u64) -> String {
-    const UNITS: [&str; 4] = ["o", "Kio", "Mio", "Gio"];
+/// Taille lisible (`1.7 Mio` / `1.7 MiB`), pour les messages.
+pub fn human_size(bytes: u64, lang: i18n::Lang) -> String {
+    let units = lang.texts().units;
     let mut value = bytes as f64;
     let mut unit = 0;
-    while value >= 1024.0 && unit < UNITS.len() - 1 {
+    while value >= 1024.0 && unit < units.len() - 1 {
         value /= 1024.0;
         unit += 1;
     }
     if unit == 0 {
-        format!("{bytes} o")
+        format!("{bytes} {}", units[0])
     } else {
-        format!("{value:.1} {}", UNITS[unit])
+        format!("{value:.1} {}", units[unit])
     }
 }
 
@@ -128,16 +134,23 @@ pub struct Summary {
 /// `dest` est soit un répertoire (terminé par `/`, ou existant), auquel cas le
 /// nom de fichier est déduit du paquet, soit le chemin complet du `.eopkg`.
 pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
-    let log = Log { quiet: opts.quiet };
+    let texts = opts.lang.texts();
+    let log = Log {
+        quiet: opts.quiet,
+        texts,
+    };
     let deb_size = std::fs::metadata(deb).map(|m| m.len()).unwrap_or(0);
-    log.info(format!("source : {} ({})", deb.display(), human_size(deb_size)));
+    log.info(i18n::fill(
+        texts.info_source,
+        &[&deb.display().to_string(), &human_size(deb_size, opts.lang)],
+    ));
 
-    let members = ar::list_members(deb)?;
+    let members = ar::list_members(deb, texts)?;
 
     let control_member = members
         .iter()
         .find(|m| m.name.starts_with("control.tar"))
-        .ok_or_else(|| invalid("pas de membre control.tar.* dans le .deb"))?;
+        .ok_or_else(|| invalid(texts.err_no_control_member))?;
 
     let data_members: Vec<_> = members
         .iter()
@@ -145,30 +158,29 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
         .collect();
     let data_member = data_members
         .first()
-        .ok_or_else(|| invalid("pas de membre data.tar.* dans le .deb"))?;
+        .ok_or_else(|| invalid(texts.err_no_data_member))?;
     if data_members.len() > 1 {
-        log.warn(format!(
-            "plusieurs membres data.tar.*, on utilise {:?}",
-            data_member.name
-        ));
+        log.warn(i18n::fill(texts.warn_multi_data, &[&data_member.name]));
     }
 
-    let control_fmt = fmt_of(control_member)?;
-    let data_fmt = fmt_of(data_member)?;
-    log.info(format!(
-        "membres : {} ({}) et {} ({})",
-        control_member.name,
-        control_fmt.name(),
-        data_member.name,
-        data_fmt.name()
+    let control_fmt = fmt_of(control_member, texts)?;
+    let data_fmt = fmt_of(data_member, texts)?;
+    log.info(i18n::fill(
+        texts.info_members,
+        &[
+            &control_member.name,
+            control_fmt.name(),
+            &data_member.name,
+            data_fmt.name(),
+        ],
     ));
 
     // ---- champs de contrôle (+ scripts de maintenance) ----
-    let ControlTar { fields, scripts } = read_control_tar(deb, control_member, control_fmt)?;
+    let ControlTar { fields, scripts } = read_control_tar(deb, control_member, control_fmt, texts)?;
     let name = fields
         .get("Package")
         .cloned()
-        .ok_or_else(|| invalid("champ Package absent du .deb"))?;
+        .ok_or_else(|| invalid(texts.err_no_package_field))?;
     let version = eopkg::normalize_version(
         fields.get("Version").map(String::as_str).unwrap_or("0.0.0-1"),
     );
@@ -182,16 +194,13 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
     // sur Solus : on le signale, mais on convertit quand même (le contenu peut
     // être indépendant de l'architecture, ex. polices ou documentation).
     if deb_arch != "amd64" && deb_arch != "all" {
-        log.warn(format!(
-            "le .deb vise l'architecture « {deb_arch} » mais le paquet est étiqueté x86_64 : \
-             la charge utile peut ne pas fonctionner sur Solus"
-        ));
+        log.warn(i18n::fill(texts.warn_foreign_arch, &[deb_arch]));
     }
 
     let out = resolve_output(dest, &name, &version, &arch);
-    log.info(format!(
-        "paquet {name} {version}, architecture {arch} -> {}",
-        out.display()
+    log.info(i18n::fill(
+        texts.info_package,
+        &[&name, &version, &arch, &out.display().to_string()],
     ));
 
     // ---- chargeur : on écrit install.tar.xz en flux vers un fichier tampon ----
@@ -269,7 +278,10 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
                     hash: String::new(),
                 });
             } else {
-                log.warn(format!("entrée ignorée (type {:?}) : {path}", entry_type));
+                log.warn(i18n::fill(
+                    texts.warn_entry_skipped,
+                    &[&format!("{:?}", entry_type), &path],
+                ));
             }
 
             processed += 1;
@@ -277,10 +289,9 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
                 && (total - last_bytes >= PROGRESS_BYTES
                     || processed - last_files >= PROGRESS_FILES)
             {
-                log.info(format!(
-                    "{} fichiers, {} écrits",
-                    records.len(),
-                    human_size(total)
+                log.info(i18n::fill(
+                    texts.info_progress,
+                    &[&records.len().to_string(), &human_size(total, opts.lang)],
                 ));
                 last_bytes = total;
                 last_files = processed;
@@ -293,7 +304,7 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
     }
 
     if records.is_empty() {
-        return Err(invalid("aucun fichier dans data.tar.* du .deb"));
+        return Err(invalid(texts.err_no_files));
     }
 
     // ---- métadonnées ----
@@ -306,10 +317,10 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
         log,
     );
     if opts.keep_deps {
-        log.info("dépendances Depends conservées dans l'eopkg");
+        log.info(texts.info_deps_kept);
         info.deps = deps.clone();
     } else {
-        log.info("dépendances Depends ignorées (--deps pour les conserver)");
+        log.info(texts.info_deps_dropped);
     }
 
     eopkg::write_eopkg(&out, &info, &records, TarSource::File(spool.path()))?;
@@ -325,13 +336,13 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
 }
 
 /// Format de compression d'un membre `*.tar*`.
-fn fmt_of(member: &ar::ArMember) -> io::Result<Format> {
+fn fmt_of(member: &ar::ArMember, texts: &i18n::Texts) -> io::Result<Format> {
     let suffix = member.name.strip_prefix("control.tar").or_else(|| member.name.strip_prefix("data.tar"));
     match suffix.map(Format::from_suffix) {
         Some(Some(fmt)) => Ok(fmt),
-        _ => Err(invalid(format!(
-            "compression non prise en charge pour le membre {:?}",
-            member.name
+        _ => Err(invalid(i18n::fill(
+            texts.err_unsupported_compression,
+            &[&member.name],
         ))),
     }
 }
@@ -348,19 +359,24 @@ struct ControlTar {
 /// Les lignes de continuation du fichier `control` (celles qui commencent par
 /// une espace) sont rattachées au champ précédent, séparées par un `\n` : c'est
 /// ainsi que la description longue de Debian est préservée.
-fn read_control_tar(deb: &Path, member: &ar::ArMember, fmt: Format) -> io::Result<ControlTar> {
+fn read_control_tar(
+    deb: &Path,
+    member: &ar::ArMember,
+    fmt: Format,
+    texts: &i18n::Texts,
+) -> io::Result<ControlTar> {
     let mut f = File::open(deb)?;
     let region = member.reader(&mut f)?;
     let mut decompressed = compress::decode(fmt, region)?;
 
     let mut blob = Vec::new();
     decompressed.read_to_end(&mut blob)?;
-    collect_control_entries(&blob)
+    collect_control_entries(&blob, texts)
 }
 
 /// Extraits d'un `control.tar` déjà décompressé : champs de `control` et
 /// scripts de maintenance.
-fn collect_control_entries(blob: &[u8]) -> io::Result<ControlTar> {
+fn collect_control_entries(blob: &[u8], texts: &i18n::Texts) -> io::Result<ControlTar> {
     let mut fields: Option<BTreeMap<String, String>> = None;
     let mut scripts: Vec<DebScript> = Vec::new();
 
@@ -391,7 +407,7 @@ fn collect_control_entries(blob: &[u8]) -> io::Result<ControlTar> {
     }
 
     let fields =
-        fields.ok_or_else(|| invalid("fichier `control` introuvable dans control.tar.*"))?;
+        fields.ok_or_else(|| invalid(texts.err_no_control_file))?;
     scripts.sort_by_key(|s| {
         MAINTAINER_SCRIPTS
             .iter()
@@ -459,7 +475,7 @@ fn parse_deps(deps: &str, log: Log) -> Vec<Dependency> {
             continue;
         }
         if name.contains(':') {
-            log.warn(format!("dépendance par architecture ignorée : {part}"));
+            log.warn(i18n::fill(log.texts.warn_arch_dep, &[part]));
             continue;
         }
         out.push(Dependency {
@@ -481,7 +497,7 @@ fn normalize_path(path: &Path) -> String {
 fn link_target(raw: Option<Cow<'_, Path>>, path: &str, log: Log) -> String {
     let target = raw.map(|c| c.to_string_lossy().into_owned()).unwrap_or_default();
     if let Some(rest) = target.strip_prefix('/') {
-        log.warn(format!("lien absolu normalisé en relatif : {path} -> {target}"));
+        log.warn(i18n::fill(log.texts.warn_abs_link, &[path, &target]));
         rest.to_string()
     } else {
         target
@@ -587,7 +603,11 @@ mod tests {
 
     #[test]
     fn dependances() {
-        let d = parse_deps("libc6 (>= 2.34), zlib1g, arch:foo", Log { quiet: true });
+        let log = Log {
+            quiet: true,
+            texts: i18n::Lang::Fr.texts(),
+        };
+        let d = parse_deps("libc6 (>= 2.34), zlib1g, arch:foo", log);
         assert_eq!(d.len(), 2);
         assert_eq!(d[0].name, "libc6");
         assert_eq!(d[0].constraint.as_deref(), Some(">= 2.34"));
@@ -634,7 +654,7 @@ mod tests {
             ("./postinst", b"#!/bin/sh\necho hi\n"),
             ("./preinst", b"#!/bin/sh\nexit 0\n"),
         ]);
-        let parsed = collect_control_entries(&tar).unwrap();
+        let parsed = collect_control_entries(&tar, i18n::Lang::Fr.texts()).unwrap();
         assert_eq!(parsed.fields.get("Package").unwrap(), "foo");
 
         // Seuls les quatre scripts de maintenance sont retenus (`md5sums` et
@@ -654,13 +674,13 @@ mod tests {
     #[test]
     fn paquet_sans_script_de_maintenance() {
         let tar = control_tar(&[("./control", b"Package: bar\n")]);
-        let parsed = collect_control_entries(&tar).unwrap();
+        let parsed = collect_control_entries(&tar, i18n::Lang::Fr.texts()).unwrap();
         assert!(parsed.scripts.is_empty());
     }
 
     #[test]
     fn control_absent_est_une_erreur() {
         let tar = control_tar(&[("./postinst", b"#!/bin/sh\n")]);
-        assert!(collect_control_entries(&tar).is_err());
+        assert!(collect_control_entries(&tar, i18n::Lang::Fr.texts()).is_err());
     }
 }

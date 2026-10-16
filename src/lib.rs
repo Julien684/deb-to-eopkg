@@ -20,6 +20,7 @@ pub mod color;
 pub mod compress;
 pub mod convert;
 pub mod eopkg;
+pub mod i18n;
 pub mod payload;
 pub mod zipw;
 
