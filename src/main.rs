@@ -48,6 +48,9 @@ OPTIONS :
 
 La conversion est verbeuse par défaut : elle indique le fichier source, les
 membres lus et une progression régulière (elle peut durer plusieurs minutes).
+Les dépendances du .deb et, s'il y en a, ses scripts de maintenance sont
+affichés à la fin. Ces derniers ne sont PAS reportés : eopkg n'exécute aucun
+script à l'installation (le mécanisme COMAR de pisi n'existe plus sur Solus).
 
 EXEMPLES :
     deb-to-eopkg mon-logiciel.deb
@@ -150,6 +153,22 @@ fn main() -> ExitCode {
                     None => eprintln!("    {}", dep.name),
                 }
             }
+        }
+        // Scripts de maintenance : eopkg n'exécute aucun script à
+        // l'installation, ils ne peuvent donc pas être reportés. On les
+        // signale pour que l'utilisateur sache ce qu'il perd.
+        if !summary.scripts.is_empty() {
+            eprintln!(
+                "{TOOL_NAME} : scripts de maintenance du .deb ({}), NON reportables :",
+                summary.scripts.len()
+            );
+            for script in &summary.scripts {
+                eprintln!("    {} ({} octets)", script.name, script.size);
+            }
+            eprintln!(
+                "{TOOL_NAME} : eopkg ne lance aucun script à l'installation \
+                 (le mécanisme COMAR n'existe plus sur Solus) : ces scripts sont ignorés."
+            );
         }
     }
     // Le chemin produit sur la sortie standard, pour l'enchaîner dans

@@ -40,6 +40,22 @@ impl Default for Options {
     }
 }
 
+/// Scripts de maintenance d'un paquet Debian, dans l'ordre canonique.
+pub const MAINTAINER_SCRIPTS: [&str; 4] = ["preinst", "postinst", "prerm", "postrm"];
+
+/// Un script de maintenance lu dans le `control.tar.*` du `.deb`.
+///
+/// eopkg n'exécute aucun script à l'installation — le mécanisme COMAR de pisi
+/// n'existe plus sur Solus — donc ces scripts ne sont jamais convertis ; ils
+/// sont seulement signalés à l'utilisateur, qui doit savoir ce qui est perdu.
+#[derive(Debug, Clone)]
+pub struct DebScript {
+    /// `preinst`, `postinst`, `prerm` ou `postrm`.
+    pub name: String,
+    /// Taille en octets, pour l'affichage.
+    pub size: usize,
+}
+
 /// Journalisation sur la sortie d'erreur.
 ///
 /// L'outil est verbeux par défaut (une conversion peut durer plusieurs
@@ -90,6 +106,9 @@ pub struct Summary {
     /// Dépendances `Depends` lues dans le `.deb`. Toujours renseignées, pour
     /// information ; elles ne sont inscrites dans l'eopkg que si `--deps`.
     pub deps: Vec<Dependency>,
+    /// Scripts de maintenance présents dans le `.deb`, pour information.
+    /// eopkg ne peut pas les exécuter : ils ne sont jamais reportés.
+    pub scripts: Vec<DebScript>,
 }
 
 /// Convertit `deb` en `.eopkg`.
@@ -132,8 +151,8 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
         data_fmt.name()
     ));
 
-    // ---- champs de contrôle ----
-    let fields = read_control(deb, control_member, control_fmt)?;
+    // ---- champs de contrôle (+ scripts de maintenance) ----
+    let ControlTar { fields, scripts } = read_control_tar(deb, control_member, control_fmt)?;
     let name = fields
         .get("Package")
         .cloned()
@@ -289,6 +308,7 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
         bytes: total,
         arch,
         deps,
+        scripts,
     })
 }
 
@@ -304,39 +324,69 @@ fn fmt_of(member: &ar::ArMember) -> io::Result<Format> {
     }
 }
 
-/// Lit le fichier `control` d'un `control.tar.*` et en extrait les champs.
+/// Contenu utile d'un `control.tar.*`.
+struct ControlTar {
+    fields: BTreeMap<String, String>,
+    scripts: Vec<DebScript>,
+}
+
+/// Lit le `control.tar.*` : champs du fichier `control` et scripts de
+/// maintenance.
 ///
-/// Les lignes de continuation (celles qui commencent par une espace) sont
-/// rattachées au champ précédent, séparées par un `\n` : c'est ainsi que la
-/// description longue de Debian est préservée.
-fn read_control(
-    deb: &Path,
-    member: &ar::ArMember,
-    fmt: Format,
-) -> io::Result<BTreeMap<String, String>> {
+/// Les lignes de continuation du fichier `control` (celles qui commencent par
+/// une espace) sont rattachées au champ précédent, séparées par un `\n` : c'est
+/// ainsi que la description longue de Debian est préservée.
+fn read_control_tar(deb: &Path, member: &ar::ArMember, fmt: Format) -> io::Result<ControlTar> {
     let mut f = File::open(deb)?;
     let region = member.reader(&mut f)?;
     let mut decompressed = compress::decode(fmt, region)?;
 
     let mut blob = Vec::new();
     decompressed.read_to_end(&mut blob)?;
+    collect_control_entries(&blob)
+}
 
-    let mut archive = tar::Archive::new(&blob[..]);
+/// Extraits d'un `control.tar` déjà décompressé : champs de `control` et
+/// scripts de maintenance.
+fn collect_control_entries(blob: &[u8]) -> io::Result<ControlTar> {
+    let mut fields: Option<BTreeMap<String, String>> = None;
+    let mut scripts: Vec<DebScript> = Vec::new();
+
+    let mut archive = tar::Archive::new(blob);
     for entry in archive.entries()? {
         let mut entry = entry?;
-        let raw = entry.path()?.into_owned();
-        let raw_str = raw.to_string_lossy().into_owned();
-        let is_control = !raw_str.ends_with('/') && raw_str.trim_end_matches('/').ends_with("control");
-        if !is_control {
+        let path = entry.path()?.into_owned();
+        if path.to_string_lossy().ends_with('/') {
             continue;
         }
-        let mut text = Vec::new();
-        entry.read_to_end(&mut text)?;
-        let text = String::from_utf8_lossy(&text);
-        return Ok(parse_control_fields(&text));
+        let Some(base) = path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+        else {
+            continue;
+        };
+        let mut content = Vec::new();
+        entry.read_to_end(&mut content)?;
+
+        if base == "control" {
+            fields = Some(parse_control_fields(&String::from_utf8_lossy(&content)));
+        } else if MAINTAINER_SCRIPTS.contains(&base.as_str()) {
+            scripts.push(DebScript {
+                name: base,
+                size: content.len(),
+            });
+        }
     }
 
-    Err(invalid("fichier `control` introuvable dans control.tar.*"))
+    let fields =
+        fields.ok_or_else(|| invalid("fichier `control` introuvable dans control.tar.*"))?;
+    scripts.sort_by_key(|s| {
+        MAINTAINER_SCRIPTS
+            .iter()
+            .position(|name| *name == s.name)
+            .unwrap_or(usize::MAX)
+    });
+    Ok(ControlTar { fields, scripts })
 }
 
 /// Analyse le contenu d'un fichier `control` (`Clé: valeur`, continuations).
@@ -545,5 +595,53 @@ mod tests {
         assert_eq!(p, PathBuf::from("/tmp/out/foo-1.2.3-1-1-x86_64.eopkg"));
         let p = resolve_output(Path::new("/tmp/x.eopkg"), "foo", "1.2.3", "x86_64");
         assert_eq!(p, PathBuf::from("/tmp/x.eopkg"));
+    }
+
+    /// Construit un `control.tar` minimal en mémoire.
+    fn control_tar(entries: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut builder = tar::Builder::new(Vec::new());
+        for (name, data) in entries {
+            let mut header = tar::Header::new_ustar();
+            header.set_entry_type(tar::EntryType::Regular);
+            header.set_size(data.len() as u64);
+            header.set_mode(0o644);
+            header.set_uid(0);
+            header.set_gid(0);
+            header.set_mtime(0);
+            builder.append_data(&mut header, name, &data[..]).unwrap();
+        }
+        builder.into_inner().unwrap()
+    }
+
+    #[test]
+    fn scripts_de_maintenance_detectes_et_ordonnes() {
+        let tar = control_tar(&[
+            ("./control", b"Package: foo\nVersion: 1.0\n"),
+            ("./postrm", b"#!/bin/sh\nexit 0\n"),
+            ("./md5sums", b"abcd  usr/bin/foo\n"),
+            ("./postinst", b"#!/bin/sh\necho hi\n"),
+            ("./preinst", b"#!/bin/sh\nexit 0\n"),
+        ]);
+        let parsed = collect_control_entries(&tar).unwrap();
+        assert_eq!(parsed.fields.get("Package").unwrap(), "foo");
+
+        // Seuls les quatre scripts de maintenance sont retenus (`md5sums` et
+        // `conffiles` sont ignorés), et ils ressortent dans l'ordre canonique.
+        let names: Vec<&str> = parsed.scripts.iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(names, vec!["preinst", "postinst", "postrm"]);
+        assert!(parsed.scripts.iter().all(|s| s.size > 0));
+    }
+
+    #[test]
+    fn paquet_sans_script_de_maintenance() {
+        let tar = control_tar(&[("./control", b"Package: bar\n")]);
+        let parsed = collect_control_entries(&tar).unwrap();
+        assert!(parsed.scripts.is_empty());
+    }
+
+    #[test]
+    fn control_absent_est_une_erreur() {
+        let tar = control_tar(&[("./postinst", b"#!/bin/sh\n")]);
+        assert!(collect_control_entries(&tar).is_err());
     }
 }
