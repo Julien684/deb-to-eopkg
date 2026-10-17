@@ -117,8 +117,9 @@ impl Palette {
         }
     }
 
-    /// Corps d'un script de maintenance, dans la couleur de son type.
-    pub fn script_body(&self, name: &str, text: &str) -> String {
+    /// Toute ligne d'un script de maintenance (son corps comme la commande
+    /// pour le lancer), dans la couleur de son type.
+    pub fn script_line(&self, name: &str, text: &str) -> String {
         self.paint(script_color(name), text)
     }
 }
@@ -160,13 +161,13 @@ mod tests {
         let p = Palette::new(false);
         assert_eq!(p.dependency("libc6"), "libc6");
         assert_eq!(p.script_header("preinst", "h"), "h");
-        assert_eq!(p.script_body("postinst", "corps"), "corps");
+        assert_eq!(p.script_line("postinst", "corps"), "corps");
     }
 
     #[test]
     fn chaque_type_de_script_a_sa_couleur() {
         let p = Palette::new(true);
-        let corps = |name| p.script_body(name, "x");
+        let corps = |name| p.script_line(name, "x");
         let couleurs: Vec<String> = ["preinst", "postinst", "prerm", "postrm"]
             .iter()
             .map(|n| corps(n))

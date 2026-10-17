@@ -182,7 +182,7 @@ fn main() -> ExitCode {
                 // séquence de remise à zéro reste ainsi sur la dernière ligne
                 // du script au lieu de flotter sur la ligne suivante.
                 let body = text.strip_suffix('\n').unwrap_or(&text);
-                eprintln!("{}", palette.script_body(&script.name, body));
+                eprintln!("{}", palette.script_line(&script.name, body));
             }
             eprintln!("{TOOL_NAME} : {}", texts.info_scripts_footer);
             // Dossier `script-<paquet>` créé à côté du `.eopkg`, avec la
@@ -192,30 +192,25 @@ fn main() -> ExitCode {
                     "{TOOL_NAME} : {}",
                     i18n::fill(texts.info_scripts_dir, &[&dir.display().to_string()])
                 );
-                // Deux commandes distinctes : installer/configurer d'un côté,
-                // retirer de l'autre — les enchaîner n'aurait pas de sens.
-                for (removal, template) in [
-                    (false, texts.info_scripts_run),
-                    (true, texts.info_scripts_run_remove),
-                ] {
-                    let steps: Vec<String> = summary
-                        .scripts
-                        .iter()
-                        .filter(|script| is_removal_script(&script.name) == removal)
-                        .map(|script| match dpkg_argument(&script.name) {
-                            Some(argument) => format!("./{} {argument}", script.name),
-                            None => format!("./{}", script.name),
-                        })
-                        .collect();
-                    if steps.is_empty() {
-                        continue;
-                    }
-                    let command = format!(
-                        "sudo sh -c 'cd {} && {}'",
-                        dir.display(),
-                        steps.join(" && ")
+                // Une ligne par script, dans la couleur de son type ; les
+                // arguments suivent dpkg (install, configure, remove).
+                for script in &summary.scripts {
+                    let step = match dpkg_argument(&script.name) {
+                        Some(argument) => format!("./{} {argument}", script.name),
+                        None => format!("./{}", script.name),
+                    };
+                    let command =
+                        format!("sudo sh -c 'cd {} && {}'", dir.display(), step);
+                    eprintln!(
+                        "{TOOL_NAME} : {}",
+                        palette.script_line(
+                            &script.name,
+                            &i18n::fill(
+                                texts.info_script_command,
+                                &[&script.name, &command]
+                            )
+                        )
                     );
-                    eprintln!("{TOOL_NAME} : {}", i18n::fill(template, &[&command]));
                 }
             }
         }
@@ -229,11 +224,6 @@ fn main() -> ExitCode {
     }
 
     ExitCode::SUCCESS
-}
-
-/// Vrai pour les scripts joués au retrait (`prerm`, `postrm`).
-fn is_removal_script(name: &str) -> bool {
-    matches!(name, "prerm" | "postrm")
 }
 
 /// Argument que dpkg passe à un script de maintenance selon la phase : c'est
@@ -325,14 +315,7 @@ mod tests {
     }
 
     #[test]
-    fn phases_des_scripts_de_maintenance() {
-        // Installer/configurer, puis retirer : les deux phases ne mélangent pas
-        // leurs scripts.
-        assert!(!is_removal_script("preinst"));
-        assert!(!is_removal_script("postinst"));
-        assert!(is_removal_script("prerm"));
-        assert!(is_removal_script("postrm"));
-
+    fn arguments_dpkg_des_scripts() {
         assert_eq!(dpkg_argument("preinst"), Some("install"));
         assert_eq!(dpkg_argument("postinst"), Some("configure"));
         assert_eq!(dpkg_argument("prerm"), Some("remove"));

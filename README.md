@@ -27,7 +27,7 @@ sert de repli).
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.0-8-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.1-9-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -162,11 +162,12 @@ python3 tools/verify_deb_vs_eopkg.py mon-logiciel.deb /tmp/mon-logiciel-1.2.3-1-
   et le module qui les lançait (`pisi/comariface.py`) n'est plus appelé. Un
   paquet converti se comporte donc comme un simple paquet de fichiers.
   Les scripts sont en plus **déposés exécutables dans un dossier
-  `script-<paquet>` créé à côté du `.eopkg`**, et l'outil affiche la commande
-  pour les rejouer à la main, avec les arguments de dpkg (`install`,
-  `configure`, puis `remove` pour un retrait) : à n'exécuter qu'en connaissance
-  de cause, ces scripts sont écrits pour Debian et appellent souvent des outils
-  absents de Solus (`dpkg-maintscript-helper`, `update-rc.d`, …).
+  `script-<paquet>` créé à côté du `.eopkg`**, et l'outil affiche **une ligne
+  par script, dans la couleur de son type**, donnant la commande pour le
+  rejouer à la main avec l'argument de dpkg (`install`, `configure`, `remove`) :
+  à n'exécuter qu'en connaissance de cause, ces scripts sont écrits pour Debian
+  et appellent souvent des outils absents de Solus (`dpkg-maintscript-helper`,
+  `update-rc.d`, …).
 - **Le paquet produit est toujours étiqueté `x86_64`.** Solus n'utilise pas
   `noarch` (aucun paquet de son dépôt, aucun paquet installé) et refuse
   d'installer un paquet ainsi étiqueté :
@@ -221,7 +222,7 @@ fallback).
 The package is self-contained, it installs as-is:
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.0-8-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.1-9-1-x86_64.eopkg
 ```
 
 Check it:
@@ -299,10 +300,10 @@ sudo eopkg install /tmp/my-app-1.2.3-1-1-x86_64.eopkg
   converted package therefore behaves as a plain file package.
   The scripts are additionally **written out executable in a
   `script-<package>` directory created next to the `.eopkg`**, and the tool
-  prints the command to replay them by hand, with the dpkg arguments
-  (`install`, `configure`, then `remove` for a removal): only run them
-  knowingly, they are written for Debian and often call tools Solus does not
-  have (`dpkg-maintscript-helper`, `update-rc.d`, …).
+  prints **one line per script, in that script's colour**, giving the command
+  to replay it by hand with the dpkg argument (`install`, `configure`,
+  `remove`): only run them knowingly, they are written for Debian and often
+  call tools Solus does not have (`dpkg-maintscript-helper`, `update-rc.d`, …).
 - **The produced package is always tagged `x86_64`.** Solus does not use
   `noarch` (no such package in its repository, none installed) and refuses to
   install a package tagged that way:

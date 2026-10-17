@@ -99,8 +99,7 @@ pub struct Texts {
     pub info_scripts_header: &'static str,
     pub info_scripts_footer: &'static str,
     pub info_scripts_dir: &'static str,
-    pub info_scripts_run: &'static str,
-    pub info_scripts_run_remove: &'static str,
+    pub info_script_command: &'static str,
     pub info_install: &'static str,
 
     // ---- avertissements ----
@@ -196,9 +195,8 @@ EXEMPLES :
     info_scripts_header: "scripts de maintenance du .deb ({}), NON reportables :",
     info_scripts_footer: "eopkg ne lance aucun script à l'installation (le mécanisme \
                           COMAR n'existe plus sur Solus) : ces scripts sont ignorés.",
-    info_scripts_dir: "scripts extraits dans {} (exécutables)",
-    info_scripts_run: "pour les exécuter : {}",
-    info_scripts_run_remove: "pour les retirer : {}",
+    info_scripts_dir: "scripts extraits dans {} (exécutables) ; pour les lancer :",
+    info_script_command: "  {} : {}",
     info_install: "installation : sudo eopkg install {}",
 
     warn_not_deb: "avertissement : {} ne finit pas par .deb",
@@ -289,9 +287,8 @@ EXAMPLES:
     info_scripts_header: ".deb maintainer scripts ({}), NOT transferable:",
     info_scripts_footer: "eopkg runs no script at install time (pisi's COMAR mechanism \
                           no longer exists on Solus): these scripts are ignored.",
-    info_scripts_dir: "scripts extracted into {} (executable)",
-    info_scripts_run: "to install/configure: {}",
-    info_scripts_run_remove: "to remove: {}",
+    info_scripts_dir: "scripts extracted into {} (executable); to run them:",
+    info_script_command: "  {}: {}",
     info_install: "installing: sudo eopkg install {}",
 
     warn_not_deb: "warning: {} does not end with .deb",
@@ -374,8 +371,7 @@ mod tests {
             (FR.info_deps_header, EN.info_deps_header),
             (FR.info_scripts_header, EN.info_scripts_header),
             (FR.info_scripts_dir, EN.info_scripts_dir),
-            (FR.info_scripts_run, EN.info_scripts_run),
-            (FR.info_scripts_run_remove, EN.info_scripts_run_remove),
+            (FR.info_script_command, EN.info_script_command),
             (FR.info_install, EN.info_install),
             (FR.warn_not_deb, EN.warn_not_deb),
             (FR.warn_multi_data, EN.warn_multi_data),
