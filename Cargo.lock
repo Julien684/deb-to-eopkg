@@ -90,7 +90,7 @@ dependencies = [
 
 [[package]]
 name = "deb-to-eopkg"
-version = "2.7.2"
+version = "2.7.3"
 dependencies = [
  "bzip2",
  "crc32fast",

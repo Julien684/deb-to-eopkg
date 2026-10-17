@@ -27,7 +27,11 @@ sert de repli).
 Le paquet est autonome, il s'installe tel quel :
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.2-10-1-x86_64.eopkg
+# depuis GitHub (miroir public)
+sudo eopkg install https://raw.githubusercontent.com/Julien684/deb-to-eopkg/main/deb-to-eopkg-2.7.3-11-1-x86_64.eopkg
+
+# depuis l'instance Gitea (réseau local)
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.3-11-1-x86_64.eopkg
 ```
 
 Vérifier :
@@ -222,7 +226,11 @@ fallback).
 The package is self-contained, it installs as-is:
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.2-10-1-x86_64.eopkg
+# from GitHub (public mirror)
+sudo eopkg install https://raw.githubusercontent.com/Julien684/deb-to-eopkg/main/deb-to-eopkg-2.7.3-11-1-x86_64.eopkg
+
+# from the Gitea instance (local network)
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.3-11-1-x86_64.eopkg
 ```
 
 Check it:
