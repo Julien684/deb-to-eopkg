@@ -185,6 +185,39 @@ fn main() -> ExitCode {
                 eprintln!("{}", palette.script_body(&script.name, body));
             }
             eprintln!("{TOOL_NAME} : {}", texts.info_scripts_footer);
+            // Dossier `script-<paquet>` créé à côté du `.eopkg`, avec la
+            // commande pour rejouer les scripts à la main (arguments dpkg).
+            if let Some(dir) = &summary.scripts_dir {
+                eprintln!(
+                    "{TOOL_NAME} : {}",
+                    i18n::fill(texts.info_scripts_dir, &[&dir.display().to_string()])
+                );
+                // Deux commandes distinctes : installer/configurer d'un côté,
+                // retirer de l'autre — les enchaîner n'aurait pas de sens.
+                for (removal, template) in [
+                    (false, texts.info_scripts_run),
+                    (true, texts.info_scripts_run_remove),
+                ] {
+                    let steps: Vec<String> = summary
+                        .scripts
+                        .iter()
+                        .filter(|script| is_removal_script(&script.name) == removal)
+                        .map(|script| match dpkg_argument(&script.name) {
+                            Some(argument) => format!("./{} {argument}", script.name),
+                            None => format!("./{}", script.name),
+                        })
+                        .collect();
+                    if steps.is_empty() {
+                        continue;
+                    }
+                    let command = format!(
+                        "sudo sh -c 'cd {} && {}'",
+                        dir.display(),
+                        steps.join(" && ")
+                    );
+                    eprintln!("{TOOL_NAME} : {}", i18n::fill(template, &[&command]));
+                }
+            }
         }
     }
     // Le chemin produit sur la sortie standard, pour l'enchaîner dans
@@ -196,6 +229,22 @@ fn main() -> ExitCode {
     }
 
     ExitCode::SUCCESS
+}
+
+/// Vrai pour les scripts joués au retrait (`prerm`, `postrm`).
+fn is_removal_script(name: &str) -> bool {
+    matches!(name, "prerm" | "postrm")
+}
+
+/// Argument que dpkg passe à un script de maintenance selon la phase : c'est
+/// celui d'une première installation (ou d'un retrait pour `prerm`/`postrm`).
+fn dpkg_argument(name: &str) -> Option<&'static str> {
+    match name {
+        "preinst" => Some("install"),
+        "postinst" => Some("configure"),
+        "prerm" | "postrm" => Some("remove"),
+        _ => None,
+    }
 }
 
 /// Destination par défaut : le dossier qui contient le `.deb`.
@@ -273,5 +322,21 @@ mod tests {
             default_destination(Path::new("./mon-logiciel.deb")),
             PathBuf::from(".")
         );
+    }
+
+    #[test]
+    fn phases_des_scripts_de_maintenance() {
+        // Installer/configurer, puis retirer : les deux phases ne mélangent pas
+        // leurs scripts.
+        assert!(!is_removal_script("preinst"));
+        assert!(!is_removal_script("postinst"));
+        assert!(is_removal_script("prerm"));
+        assert!(is_removal_script("postrm"));
+
+        assert_eq!(dpkg_argument("preinst"), Some("install"));
+        assert_eq!(dpkg_argument("postinst"), Some("configure"));
+        assert_eq!(dpkg_argument("prerm"), Some("remove"));
+        assert_eq!(dpkg_argument("postrm"), Some("remove"));
+        assert_eq!(dpkg_argument("md5sums"), None);
     }
 }

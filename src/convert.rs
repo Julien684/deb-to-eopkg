@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -125,8 +126,12 @@ pub struct Summary {
     /// information ; elles ne sont inscrites dans l'eopkg que si `--deps`.
     pub deps: Vec<Dependency>,
     /// Scripts de maintenance présents dans le `.deb`, pour information.
-    /// eopkg ne peut pas les exécuter : ils ne sont jamais reportés.
+    /// eopkg ne peut pas les exécuter : ils ne sont jamais reportés dans
+    /// l'eopkg, mais ils sont exportés dans un dossier à côté du paquet.
     pub scripts: Vec<DebScript>,
+    /// Dossier `script-<paquet>` créé à côté du `.eopkg` (vide s'il n'y a
+    /// aucun script de maintenance).
+    pub scripts_dir: Option<PathBuf>,
 }
 
 /// Convertit `deb` en `.eopkg`.
@@ -325,6 +330,28 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
 
     eopkg::write_eopkg(&out, &info, &records, TarSource::File(spool.path()))?;
 
+    // Les scripts sont aussi exportés dans un dossier `script-<paquet>` à côté
+    // du `.eopkg`, en mode exécutable : eopkg ne les jouera jamais, mais
+    // l'utilisateur peut ainsi les reprendre à la main.
+    let scripts_dir = if scripts.is_empty() {
+        None
+    } else {
+        let parent = out
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let dir = parent.join(format!("script-{name}"));
+        std::fs::create_dir_all(&dir)?;
+        for script in &scripts {
+            let path = dir.join(&script.name);
+            std::fs::write(&path, &script.content)?;
+            let mut permissions = std::fs::metadata(&path)?.permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&path, permissions)?;
+        }
+        Some(dir)
+    };
+
     Ok(Summary {
         out,
         files: records.len() as u64,
@@ -332,6 +359,7 @@ pub fn convert(deb: &Path, dest: &Path, opts: Options) -> io::Result<Summary> {
         arch,
         deps,
         scripts,
+        scripts_dir,
     })
 }
 

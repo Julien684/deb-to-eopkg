@@ -32,7 +32,7 @@ const PACKAGE_LICENSE: &str = "GPL-3.0";
 /// Release par défaut. **À incrémenter à chaque publication** : eopkg ne
 /// compare que ce numéro (voir le commentaire en tête de fichier). Surchargeable
 /// par `--release N`.
-const RELEASE: &str = "7";
+const RELEASE: &str = "8";
 // Métadonnées volontairement en ASCII : eopkg affiche les champs via un flux
 // encodé ASCII quand la locale n'est pas UTF-8, et lève alors une
 // UnicodeEncodeError sur un caractère accentué (vérifié sur Solus 4.9).

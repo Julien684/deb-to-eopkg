@@ -98,6 +98,9 @@ pub struct Texts {
     pub info_deps_header: &'static str,
     pub info_scripts_header: &'static str,
     pub info_scripts_footer: &'static str,
+    pub info_scripts_dir: &'static str,
+    pub info_scripts_run: &'static str,
+    pub info_scripts_run_remove: &'static str,
     pub info_install: &'static str,
 
     // ---- avertissements ----
@@ -167,9 +170,10 @@ OPTIONS :
 La conversion est verbeuse par défaut : elle indique le fichier source, les
 membres lus et une progression régulière (elle peut durer plusieurs minutes).
 Les dépendances du .deb et, s'il y en a, le CONTENU de ses scripts de
-maintenance sont affichés à la fin. Ces scripts ne sont PAS reportés : eopkg
-n'exécute aucun script à l'installation (le mécanisme COMAR de pisi n'existe
-plus sur Solus).
+maintenance sont affichés à la fin. Ces scripts ne sont PAS reportés dans
+l'eopkg (eopkg n'exécute aucun script à l'installation, le mécanisme COMAR de
+pisi n'existe plus sur Solus) : ils sont déposés exécutables dans un dossier
+`script-<paquet>` à côté du .eopkg, avec la commande pour les lancer.
 
 EXEMPLES :
     deb-to-eopkg mon-logiciel.deb
@@ -192,6 +196,9 @@ EXEMPLES :
     info_scripts_header: "scripts de maintenance du .deb ({}), NON reportables :",
     info_scripts_footer: "eopkg ne lance aucun script à l'installation (le mécanisme \
                           COMAR n'existe plus sur Solus) : ces scripts sont ignorés.",
+    info_scripts_dir: "scripts extraits dans {} (exécutables)",
+    info_scripts_run: "pour les exécuter : {}",
+    info_scripts_run_remove: "pour les retirer : {}",
     info_install: "installation : sudo eopkg install {}",
 
     warn_not_deb: "avertissement : {} ne finit pas par .deb",
@@ -256,8 +263,10 @@ OPTIONS:
 The conversion is verbose by default: it reports the source file, the members
 read and regular progress (it can take several minutes). The .deb dependencies
 and, if any, the CONTENT of its maintainer scripts are printed at the end.
-Those scripts are NOT carried over: eopkg runs no script at install time
-(pisi's COMAR mechanism no longer exists on Solus).
+Those scripts are NOT carried over into the eopkg (eopkg runs no script at
+install time, pisi's COMAR mechanism no longer exists on Solus): they are
+written out executable in a `script-<package>` directory next to the .eopkg,
+along with the command to run them.
 
 EXAMPLES:
     deb-to-eopkg my-app.deb
@@ -280,6 +289,9 @@ EXAMPLES:
     info_scripts_header: ".deb maintainer scripts ({}), NOT transferable:",
     info_scripts_footer: "eopkg runs no script at install time (pisi's COMAR mechanism \
                           no longer exists on Solus): these scripts are ignored.",
+    info_scripts_dir: "scripts extracted into {} (executable)",
+    info_scripts_run: "to install/configure: {}",
+    info_scripts_run_remove: "to remove: {}",
     info_install: "installing: sudo eopkg install {}",
 
     warn_not_deb: "warning: {} does not end with .deb",
@@ -361,6 +373,9 @@ mod tests {
             (FR.info_generation, EN.info_generation),
             (FR.info_deps_header, EN.info_deps_header),
             (FR.info_scripts_header, EN.info_scripts_header),
+            (FR.info_scripts_dir, EN.info_scripts_dir),
+            (FR.info_scripts_run, EN.info_scripts_run),
+            (FR.info_scripts_run_remove, EN.info_scripts_run_remove),
             (FR.info_install, EN.info_install),
             (FR.warn_not_deb, EN.warn_not_deb),
             (FR.warn_multi_data, EN.warn_multi_data),
