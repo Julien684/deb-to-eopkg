@@ -193,14 +193,16 @@ fn main() -> ExitCode {
                     i18n::fill(texts.info_scripts_dir, &[&dir.display().to_string()])
                 );
                 // Une ligne par script, dans la couleur de son type ; les
-                // arguments suivent dpkg (install, configure, remove).
+                // arguments suivent dpkg (install, configure, remove). Le
+                // chemin est absolu pour que la ligne soit copiable telle
+                // quelle depuis n'importe quel dossier.
                 for script in &summary.scripts {
-                    let step = match dpkg_argument(&script.name) {
-                        Some(argument) => format!("./{} {argument}", script.name),
-                        None => format!("./{}", script.name),
+                    let path = dir.join(&script.name);
+                    let path = std::fs::canonicalize(&path).unwrap_or(path);
+                    let command = match dpkg_argument(&script.name) {
+                        Some(argument) => format!("sudo bash {} {argument}", path.display()),
+                        None => format!("sudo bash {}", path.display()),
                     };
-                    let command =
-                        format!("sudo sh -c 'cd {} && {}'", dir.display(), step);
                     eprintln!(
                         "{TOOL_NAME} : {}",
                         palette.script_line(
