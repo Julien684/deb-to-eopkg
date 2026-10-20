@@ -27,16 +27,16 @@ sert de repli).
 ### Installation via eopkg avec le binaire
 
 ```bash
-sudo eopkg install https://raw.githubusercontent.com/Julien684/deb-to-eopkg/main/deb-to-eopkg-2.7.4-12-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.4-12-1-x86_64.eopkg
 ```
 ### Installation via eopkg du dépôt Linuxon
 
 ```sh
-# Téléchargement et installation direct du paquet depuis Github :
+# Téléchargement et installation direct du paquet depuis Gitea (depoa) :
 sudo eopkg install deb-to-eopkg
 ```
 
-> Plus d'information ici [eopkg-repo - Github](https://github.com/Julien684/eopkg-repo)
+> Plus d'information ici [eopkg-repo - Gitea](https://depoa.julien68.fr/Linuxon/eopkg-repo)
 
 Vérifier :
 
@@ -230,17 +230,17 @@ fallback).
 The package is self-contained, it installs as-is:
 
 ```bash
-sudo eopkg install https://raw.githubusercontent.com/Julien684/deb-to-eopkg/main/deb-to-eopkg-2.7.4-12-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/raw/branch/main/deb-to-eopkg-2.7.4-12-1-x86_64.eopkg
 ```
 
 ### Installation via eopkg from the Linuxon repository
 
 ```sh
-# Direct download and installation of the package from GitHub:
+# Direct download and installation of the package from Gitea (depoa):
 sudo eopkg install deb-to-eopkg
 ```
 
-> More information here [eopkg-repo - GitHub](https://github.com/Julien684/eopkg-repo)
+> More information here [eopkg-repo - Gitea](https://depoa.julien68.fr/Linuxon/eopkg-repo)
 
 Check it:
 
