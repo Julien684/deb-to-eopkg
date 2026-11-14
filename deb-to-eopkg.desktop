@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=deb-to-eopkg
+Name[fr]=deb-to-eopkg
+GenericName=Debian package converter
+GenericName[fr]=Convertisseur de paquets Debian
+Comment=Convert a Debian .deb package into a Solus .eopkg package
+Comment[fr]=Convertir un paquet Debian .deb en paquet Solus .eopkg
+Exec=deb-to-eopkg
+Icon=deb-to-eopkg
+Terminal=true
+Categories=Development;Utility;
+Keywords=deb;eopkg;package;convert;solus;
+Keywords[fr]=deb;eopkg;paquet;convertir;solus;

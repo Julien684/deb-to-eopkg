@@ -13,7 +13,7 @@ OUT_DIR = Path(sys.argv[2]) if len(sys.argv) > 2 else SRC_DIR
 
 PACKAGE_NAME   = "deb-to-eopkg"
 VERSION        = "2.7.4"
-RELEASE        = 14
+RELEASE        = 15
 DIST_RELEASE   = 1
 ARCH           = "x86_64"
 DIST_NAME      = "Solus"
@@ -33,6 +33,7 @@ FILE_LIST = [
     ("usr/share/icons/hicolor/48x48/apps/deb-to-eopkg.png", "deb-to-eopkg-48.png", 0o644),
     ("usr/share/icons/hicolor/128x128/apps/deb-to-eopkg.png", "deb-to-eopkg-128.png", 0o644),
     ("usr/share/icons/hicolor/256x256/apps/deb-to-eopkg.png", "deb-to-eopkg-256.png", 0o644),
+    ("usr/share/applications/deb-to-eopkg.desktop", "deb-to-eopkg.desktop", 0o644),
 ]
 
 RUNTIME_DEPS = []
