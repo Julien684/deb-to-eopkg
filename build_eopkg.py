@@ -13,7 +13,7 @@ OUT_DIR = Path(sys.argv[2]) if len(sys.argv) > 2 else SRC_DIR
 
 PACKAGE_NAME   = "deb-to-eopkg"
 VERSION        = "2.7.4"
-RELEASE        = 13
+RELEASE        = 14
 DIST_RELEASE   = 1
 ARCH           = "x86_64"
 DIST_NAME      = "Solus"

@@ -27,7 +27,7 @@ sert de repli).
 ### Installation via eopkg avec le binaire
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/releases/download/v2.7.4/deb-to-eopkg-2.7.4-13-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/releases/download/v2.7.4/deb-to-eopkg-2.7.4-14-1-x86_64.eopkg
 ```
 ### Installation via eopkg du dépôt Linuxon
 
@@ -230,7 +230,7 @@ fallback).
 The package is self-contained, it installs as-is:
 
 ```bash
-sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/releases/download/v2.7.4/deb-to-eopkg-2.7.4-13-1-x86_64.eopkg
+sudo eopkg install https://depoa.julien68.fr/Linuxon/deb-to-eopkg/releases/download/v2.7.4/deb-to-eopkg-2.7.4-14-1-x86_64.eopkg
 ```
 
 ### Installation via eopkg from the Linuxon repository
