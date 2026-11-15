@@ -1,5 +1,11 @@
 # deb-to-eopkg
 
+> ⚠️ **Projet archivé — remplacé par [eopkg-converter](https://github.com/Julien684/eopkg-converter).**
+> `eopkg-converter` reprend ce convertisseur et ajoute la prise en charge des
+> paquets **RPM** ainsi qu'une **interface graphique Qt6**. Ce dépôt reste
+> disponible en lecture seule pour référence historique ; utilisez
+> `eopkg-converter` pour toute nouvelle conversion.
+
 > **Vibe codé.** Ce logiciel a été écrit en dialoguant avec un assistant IA
 > (Hermes Agent), pas à la main. Il est couvert par des tests unitaires et
 > vérifié de bout en bout sur une vraie VM Solus, mais son code n'a pas été
@@ -202,6 +208,12 @@ GPL v3. Voir `LICENSE`.
 ---
 
 # deb-to-eopkg (English)
+
+> ⚠️ **Archived project — superseded by [eopkg-converter](https://github.com/Julien684/eopkg-converter).**
+> `eopkg-converter` continues this converter and adds **RPM** package support
+> and a **Qt6 graphical interface**. This repository remains available
+> read-only for historical reference; use `eopkg-converter` for any new
+> conversion.
 
 > **Vibe coded.** This software was written by conversing with an AI assistant
 > (Hermes Agent) rather than by hand. It is covered by unit tests and verified
